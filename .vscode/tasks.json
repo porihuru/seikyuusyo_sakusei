@@ -1,0 +1,23 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "ローカルWebサーバーを起動",
+            "type": "process",
+            "command": "node",
+            "args": ["${workspaceFolder}/.vscode/server.cjs"],
+            "isBackground": true,
+            "problemMatcher": {
+                "owner": "local-server",
+                "pattern": { "regexp": "^ERROR (.*)$", "message": 1 },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "^Starting local server",
+                    "endsPattern": "^Local server ready:"
+                }
+            },
+            "presentation": { "reveal": "silent", "panel": "dedicated" },
+            "runOptions": { "instanceLimit": 1 }
+        }
+    ]
+}

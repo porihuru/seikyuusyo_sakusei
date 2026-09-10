@@ -1,0 +1,13 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Webサーバー経由でEdgeを開く",
+            "type": "msedge",
+            "request": "launch",
+            "url": "http://127.0.0.1:8080/index.html",
+            "webRoot": "${workspaceFolder}",
+            "preLaunchTask": "ローカルWebサーバーを起動"
+        }
+    ]
+}
