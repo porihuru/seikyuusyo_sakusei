@@ -25,7 +25,7 @@
   }
   function httpError(status) {
     var messages = {
-      401: 'サインインの有効期限が切れています。再度サインインしてください。',
+      401: '認証の有効期限が切れています。「共有リストを再読込」で認証を確認してください。',
       403: 'SharePointへのアクセス権限がありません。サイト・リストの権限とアプリの同意を管理者に確認してください。',
       404: '指定したSharePointのサイト、リスト、または項目が見つかりません。',
       412: '別の人がこの情報を更新しました。一覧を再読込し、最新の内容を確認してから更新してください。',
@@ -173,15 +173,24 @@
         initialization = app.initialize().catch(function (e) { app = null; initialization = null; throw e; });
         return initialization;
       }).then(function () {
-        if (interactive) return app.loginPopup({ scopes: SCOPES, prompt: 'select_account' }).then(function (result) {
+        account = app.getActiveAccount();
+        if (account) return;
+        if (!interactive) throw D.error('SIGNIN', '認証が必要です。「共有リストを再読込」を押してください。');
+        return app.loginPopup({ scopes: SCOPES, prompt: 'select_account' }).then(function (result) {
           account = result.account; app.setActiveAccount(account);
         });
-        account = app.getActiveAccount();
-        if (!account) throw D.error('SIGNIN', 'Microsoft 365にサインインして共有リストを読み込んでください。');
+      }).then(function () {
+        // 起動時は認証画面を開かず、再読込の操作時だけ必要に応じて認証を確認する。
+        return app.acquireTokenSilent({ scopes: SCOPES, account: account }).catch(function (e) {
+          if (interactive && e instanceof root.msal.InteractionRequiredAuthError) {
+            return app.acquireTokenPopup({ scopes: SCOPES, account: account });
+          }
+          throw D.error('SIGNIN', '認証を確認できません。「共有リストを再読込」を押してください。');
+        });
       }).then(function () {
         var request = createRequest(root.fetch.bind(root), function () {
           return app.acquireTokenSilent({ scopes: SCOPES, account: account }).then(function (result) { return result.accessToken; }, function () {
-            throw D.error('SIGNIN', '再度「Microsoft 365にサインイン」を押してください。認証またはアクセス許可の確認が必要です。');
+            throw D.error('SIGNIN', '「共有リストを再読込」を押してください。認証またはアクセス許可の確認が必要です。');
           });
         });
         return request('GET', '/me?$select=id,displayName,mail,userPrincipalName').then(function (me) {
@@ -192,7 +201,7 @@
       });
     }
     return { connect: connect, save: function (kind, fields, existing) {
-      if (!store || !user) return Promise.reject(D.error('SIGNIN', '先にサインインしてください。'));
+      if (!store || !user) return Promise.reject(D.error('SIGNIN', '先に「共有リストを再読込」で接続してください。'));
       return store.save(kind, fields, existing);
     } };
   }

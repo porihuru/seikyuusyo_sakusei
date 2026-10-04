@@ -69,7 +69,6 @@
       <div class="master-connection">
         <div id="masterStatus" role="status" aria-live="polite">宛先・業者の登録情報を確認しています…</div>
         <div class="master-connection-actions">
-          <button id="masterSignIn" type="button" class="secondary-button">Microsoft 365にサインイン</button>
           <button id="masterReload" type="button" class="secondary-button">共有リストを再読込</button>
           <button id="masterTest" type="button" class="secondary-button">テストCSVを表示</button>
         </div>
@@ -107,9 +106,10 @@
       </div>
       <div class="bulk-toolbar">
         <label for="bulkSpecText">規格の一括入力</label>
-        <input id="bulkSpecText" type="text" placeholder="全明細に設定する規格" aria-describedby="bulkHint">
+        <input id="bulkSpecText" type="text" value="規格表のとおり" placeholder="全明細に設定する規格" aria-describedby="bulkHint">
         <button id="btnBulkSpec" type="button">規格欄一括入力</button>
-        <span id="bulkHint" class="small">すべての明細の規格を上書きします。</span>
+        <button id="btnBulkSpecEmpty" type="button">規格の空欄に一括入力</button>
+        <span id="bulkHint" class="small">「規格欄一括入力」は全明細を上書きします。「規格の空欄に一括入力」は入力済みの規格を保持します。</span>
       </div>
       <div id="summary" class="small" role="status" aria-live="polite"></div>
       <div id="result" role="region" aria-label="請求明細（横にスクロールできます）" tabindex="0"></div>
@@ -729,6 +729,7 @@ function copyTextToClipboard(text, label) {
   var btnPrint     = document.getElementById('btnPrint');
   var bulkSpecText = document.getElementById('bulkSpecText');
   var btnBulkSpec  = document.getElementById('btnBulkSpec');
+  var btnBulkSpecEmpty = document.getElementById('btnBulkSpecEmpty');
 
   // ★これを追加★
   var btnGyousya   = document.getElementById('btnGyousya');
@@ -750,7 +751,7 @@ function copyTextToClipboard(text, label) {
   document.getElementById('headerBox').innerHTML = 'ここに納地・業者名ヘッダーが表示されます。';
   document.getElementById('sumBox').innerHTML   = '';
   document.getElementById('copyMsg').innerHTML  = '';
-  bulkSpecText.value = '';
+  bulkSpecText.value = bulkSpecText.defaultValue;
 
   // ★ここでは日付・宛先・業者名はクリアしない
   // dateInput.value = '';
@@ -766,25 +767,33 @@ function copyTextToClipboard(text, label) {
 };
 
 
-  // 規格欄 一括入力
-  btnBulkSpec.onclick = function() {
+  // 規格欄 一括入力（全明細／空欄のみ）
+  function applyBulkSpecification(onlyEmpty) {
     var v = bulkSpecText.value || '';
     if (!currentRows || !currentRows.length) {
-      document.getElementById('copyMsg').innerHTML = '明細がないため規格一括入力は行われません。';
+      document.getElementById('copyMsg').textContent = '明細がないため規格一括入力は行われません。';
       return;
     }
-    var i;
-    for (i = 0; i < currentRows.length; i++) {
-      currentRows[i].spec = v;
-      currentRows[i]._specManual = true;
+    if (onlyEmpty && !/\S/.test(v)) {
+      document.getElementById('copyMsg').textContent = '一括入力する規格を入力してください。';
+      return;
     }
     var inputs = document.getElementsByClassName('spec-input');
-    for (i = 0; i < inputs.length; i++) {
-      inputs[i].value = v;
+    var i, changed = 0;
+    for (i = 0; i < currentRows.length; i++) {
+      if (onlyEmpty && /\S/.test(currentRows[i].spec || '')) continue;
+      currentRows[i].spec = v;
+      currentRows[i]._specManual = true;
+      if (inputs[i]) { inputs[i].value = v; inputs[i].title = v; }
+      changed++;
     }
     rebuildDetailsText();
-    document.getElementById('copyMsg').innerHTML = '規格欄を一括入力しました。';
-  };
+    document.getElementById('copyMsg').textContent = onlyEmpty ?
+      (changed ? '空欄の規格 ' + changed + '件に一括入力しました。' : '規格が空欄の明細はありません。') :
+      '規格欄 ' + changed + '件を一括入力しました。';
+  }
+  btnBulkSpec.onclick = function () { applyBulkSpecification(false); };
+  btnBulkSpecEmpty.onclick = function () { applyBulkSpecification(true); };
 
   // 全データコピー（バージョン＋日付＋宛先＋業者名＋ヘッダー＋明細＋最終ページ集計）
   btnCopyAll.onclick = function() {

@@ -70,7 +70,8 @@
     global.renderTable([], null);
     document.getElementById('vendorText').value = '';
     if (global.invoiceMasterChanged) global.invoiceMasterChanged('vendor');
-    document.getElementById('bulkSpecText').value = '';
+    var bulkSpecText = document.getElementById('bulkSpecText');
+    bulkSpecText.value = bulkSpecText.defaultValue;
     if (notice) global.applyNoticeSpecifications();
     ledgerReader.load(file, function (progress) { message(status, file.name + '：' + progress); }, function (pages) {
       var parsed = global.parseLedgerPdfPages(pages);

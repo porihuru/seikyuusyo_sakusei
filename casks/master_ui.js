@@ -6,6 +6,25 @@
   var client = null, user = null, mode = 'loading', busy = false;
   var data = { address: [], vendor: [] }, views = {}, pending = null, saveUncertain = false;
   var kinds = ['address', 'vendor'];
+  function mineCookieName(kind) { return 'invoice_master_mine_' + kind; }
+  function readMinePreference(kind) {
+    try {
+      var prefix = mineCookieName(kind) + '=';
+      return String(document.cookie || '').split(';').some(function (part) {
+        return D.trim(part) === prefix + '1';
+      });
+    } catch (_) { return false; }
+  }
+  function saveMinePreference(kind, checked) {
+    var pathname = root.location.pathname;
+    var cookiePath = (pathname.slice(0, pathname.lastIndexOf('/') + 1) || '/').replace(/[;\r\n]/g, '');
+    var expires = new Date(new Date().getTime() + 365 * 24 * 60 * 60 * 1000);
+    try {
+      document.cookie = mineCookieName(kind) + '=' + (checked ? '1' : '0') +
+        '; Path=' + cookiePath + '; Max-Age=31536000; Expires=' + expires.toUTCString() +
+        '; SameSite=Lax' + (root.location.protocol === 'https:' ? '; Secure' : '');
+    } catch (_) { /* Cookieが制限されていても、現在の画面では設定を適用する。 */ }
+  }
   function byId(id) { return document.getElementById(id); }
   function node(tag, text, className) {
     var n = document.createElement(tag);
@@ -37,11 +56,11 @@
   }
   function setBusy(value) {
     busy = value;
-    ['masterSignIn', 'masterReload', 'masterTest'].forEach(function (id) { byId(id).disabled = value; });
+    ['masterReload', 'masterTest'].forEach(function (id) { byId(id).disabled = value; });
     kinds.forEach(function (kind) {
       var v = views[kind];
       if (!v) return;
-      v.select.disabled = value; v.search.disabled = value; v.mine.disabled = value || !user || mode !== 'sharepoint';
+      v.select.disabled = value; v.search.disabled = value; v.mine.disabled = value;
       v.use.disabled = value || !candidate(kind);
       v.fresh.disabled = value;
       v.create.disabled = value || mode !== 'sharepoint' || saveUncertain || v.bound && v.bound.source === 'test';
@@ -92,6 +111,7 @@
     });
     v.select.value = list.some(function (r) { return r.id === selected; }) ? selected : '';
     v.count.textContent = list.length + '件' + (mode === 'test' ? '（架空のテストデータ）' : '');
+    v.mineHint.textContent = v.mine.checked && mode !== 'sharepoint' ? 'チェック状態は保存されます。本人の情報への絞り込みはSharePoint接続後に適用します。' : '';
     preview(kind);
   }
   function renderAll() {
@@ -142,7 +162,7 @@
       v.bound = record; v.appliedText = record.lines.slice(0, kind === 'address' ? 3 : 5).join('\n').replace(/\n+$/, '');
       v.message.textContent = (existing ? '更新しました。更新者：' + person(record.modifiedBy) : '登録しました。登録者：' + person(record.createdBy));
       closeReview(); setBusy(false);
-      v.search.value = ''; v.mine.checked = false; render(kind);
+      v.search.value = ''; render(kind);
       v.select.value = record.id; preview(kind); provenance(kind);
     }, function (e) {
       saveUncertain = !!(e.uncertain || e.committed);
@@ -163,7 +183,10 @@
     v.search = input(kind + 'Search', '登録済み' + label + 'を検索', container); v.search.placeholder = '名称・登録者で検索';
     var filters = node('div', null, 'master-filters');
     v.mine = input(kind + 'Mine', '自分が登録した情報だけ', filters, 'checkbox');
+    v.mine.checked = readMinePreference(kind);
+    v.mine.setAttribute('aria-describedby', kind + 'MineHint');
     v.count = node('span', '', 'small'); filters.appendChild(v.count); container.appendChild(filters);
+    v.mineHint = node('p', '', 'small'); v.mineHint.id = kind + 'MineHint'; container.appendChild(v.mineHint);
     var selectLabel = node('label', label + 'の候補'); selectLabel.htmlFor = kind + 'Select'; container.appendChild(selectLabel);
     v.select = node('select'); v.select.id = kind + 'Select'; container.appendChild(v.select);
     v.preview = node('pre', '', 'master-preview'); container.appendChild(v.preview);
@@ -181,7 +204,8 @@
     editor.appendChild(v.create); editor.appendChild(v.update);
     v.saveHint = node('p', '', 'small'); editor.appendChild(v.saveHint);
     v.message = node('p', '', 'master-message'); v.message.setAttribute('role', 'status'); editor.appendChild(v.message);
-    v.search.oninput = function () { render(kind); }; v.mine.onchange = function () { render(kind); };
+    v.search.oninput = function () { render(kind); };
+    v.mine.onchange = function () { saveMinePreference(kind, v.mine.checked); render(kind); };
     v.select.onchange = function () { preview(kind); };
     v.text.addEventListener('input', function () { closeReview(); provenance(kind); });
     v.title.oninput = closeReview; v.match.oninput = closeReview;
@@ -203,7 +227,6 @@
     status('テストCSVを読み込んでいます…');
     return Promise.all([csv('data/addresses.test.csv'), csv('data/vendors.test.csv')]).then(function (rows) {
       data = { address: rows[0], vendor: rows[1] }; mode = 'test'; user = null;
-      kinds.forEach(function (kind) { views[kind].mine.checked = false; });
       setBusy(false); renderAll();
       status((reason ? reason + ' ' : '') + 'テストCSVを表示中・SharePointには保存されません。内容は架空です。');
     }, function (e) { data = { address: [], vendor: [] }; mode = 'error'; setBusy(false); renderAll(); status(e.message, true); });
@@ -213,7 +236,7 @@
     if (busy) return;
     if (!configured()) { testMode('SharePointの接続先が未設定です。'); return; }
     closeReview(); setBusy(true); mode = 'loading'; data = { address: [], vendor: [] }; user = null; renderAll();
-    status(interactive ? 'Microsoft 365にサインインしています…' : 'SharePointを確認しています…');
+    status('SharePointを確認しています…');
     if (!client) client = SP.createClient(config);
     client.connect(interactive).then(function (result) {
       mode = 'sharepoint'; user = result.user; data = stamp(result.records); saveUncertain = false;
@@ -226,8 +249,7 @@
     });
   }
   kinds.forEach(build);
-  byId('masterSignIn').onclick = function () { connect(true); };
-  byId('masterReload').onclick = function () { connect(false); };
+  byId('masterReload').onclick = function () { connect(true); };
   byId('masterTest').onclick = function () { if (!busy) testMode(''); };
   if (configured()) connect(false); else testMode('SharePointの接続先が未設定です。');
 })(this);

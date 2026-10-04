@@ -54,6 +54,7 @@ input[type="file"]::file-selector-button { border: 1px solid #bac8d4; border-rad
 .field-note { display: block; margin-top: 7px; color: #6a7888; font-size: 12px; }
 .bulk-toolbar { display: flex; align-items: center; flex-wrap: wrap; padding: 14px 16px; border-radius: 6px; background: #f4f7fa; margin-bottom: 16px; }
 .bulk-toolbar label { font-size: 13px; font-weight: bold; margin-right: 14px; }
+.bulk-toolbar button { margin: 4px 8px 4px 0; }
 #bulkSpecText { width: 230px; max-width: 100%; margin-right: 8px; padding: 7px 10px; }
 .bulk-toolbar .small { margin-left: 14px; }
 #summary { margin-bottom: 10px; font-weight: bold; color: #426177; }
@@ -108,6 +109,7 @@ button.primary-button:hover { background: #195e59; border-color: #195e59; }
 .master-filters { display: flex; flex-wrap: wrap; align-items: center; margin: 7px 0 10px; font-size: 12px; }
 .master-filters label { margin-right: 5px; }
 .master-filters input { margin-right: 14px; }
+.master-picker > .small:empty { display: none; }
 .master-preview { font: inherit; font-size: 12px; color: #4b5f72; white-space: pre-wrap; word-wrap: break-word; overflow-wrap: anywhere; padding: 10px; background: #fff; border: 1px solid #e0e7ed; max-height: 220px; overflow-y: auto; }
 .master-picker button, .master-editor button { margin: 4px 6px 4px 0; }
 .master-provenance { margin: 9px 0; padding: 9px 12px; border-left: 3px solid #a7c9c3; background: #f1f7f5; color: #405f57; font-size: 12px; white-space: pre-line; word-wrap: break-word; }

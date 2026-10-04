@@ -1,4 +1,6 @@
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
 const SP = require('../casks/sharepoint_client.js');
 const D = require('../casks/master_data.js');
 const config = {tenantId:'11111111-1111-1111-1111-111111111111',clientId:'22222222-2222-2222-2222-222222222222',
@@ -78,5 +80,45 @@ function fixture() {
   const offline=SP.createRequest(async()=>{throw new TypeError('offline');},async()=>'test-token');
   await assert.rejects(offline('POST','/sites/s/lists/l/items',{}),e=>e.uncertain && e.code==='NETWORK');
   await assert.rejects(offline('GET','/me'),e=>!e.uncertain);
+  // サインイン専用ボタンなしでも、再読込時のみ必要な認証を完了できる。
+  const auth = {account:null,login:0,popup:0,requiresInteraction:false,networkFailure:false};
+  class InteractionRequiredAuthError extends Error {}
+  const account = {localAccountId:'u1'};
+  const app = {
+    initialize:async()=>{},getActiveAccount:()=>auth.account,setActiveAccount:value=>{auth.account=value;},
+    loginPopup:async()=>{auth.login++;return {account};},
+    acquireTokenSilent:async()=>{
+      if(auth.networkFailure) throw new Error('network failed');
+      if(auth.requiresInteraction) throw new InteractionRequiredAuthError('interaction required');
+      return {accessToken:'mock-token'};
+    },
+    acquireTokenPopup:async()=>{auth.popup++;auth.requiresInteraction=false;return {accessToken:'mock-token'};}
+  };
+  const sandbox = {InvoiceMasterData:D,Promise,URL,AbortController,setTimeout,clearTimeout,
+    crypto:{subtle:{}},location:{href:'http://localhost:8080/index.html'},
+    msal:{PublicClientApplication:class {constructor(){return app;}},InteractionRequiredAuthError},
+    fetch:async url=>({ok:true,status:200,json:async()=>{
+      if(url.includes('/me?')) return {id:'u1',displayName:'本人',mail:'user@example.invalid'};
+      if(url.includes('/sites/sample.sharepoint.com:')) return {id:'site'};
+      if(url.includes('/lists?')) return {value:[{id:'a',displayName:'宛先'},{id:'v',displayName:'業者'}]};
+      if(url.includes('/columns?')) return {value:['Title','Line1','Line2','Line3','Line4','Line5','MatchName'].map(name=>({name,text:{}})).concat([{name:'Active',boolean:{}}])};
+      if(url.includes('/items?')) return {value:[]};
+      throw new Error('Unexpected authentication fixture URL');
+    }})
+  };
+  vm.runInNewContext(fs.readFileSync(require.resolve('../casks/sharepoint_client.js'),'utf8'),sandbox);
+  const authClient = sandbox.InvoiceSharePoint.createClient(config);
+  await assert.rejects(authClient.connect(false),e=>e.code==='SIGNIN');
+  assert.equal(auth.login,0,'起動時はポップアップを開かない');
+  await authClient.connect(true);assert.equal(auth.login,1,'初回の再読込で本人確認');
+  await authClient.connect(true);assert.equal(auth.login,1,'認証済みなら再認証なし');
+  auth.requiresInteraction=true;
+  await assert.rejects(authClient.connect(false),e=>e.code==='SIGNIN');
+  assert.equal(auth.popup,0,'起動時の認証エラーでポップアップを開かない');
+  await authClient.connect(true);assert.equal(auth.popup,1,'再読込時に必要な認証を回復');
+  auth.networkFailure=true;
+  await assert.rejects(authClient.connect(true),e=>e.code==='SIGNIN');
+  assert.equal(auth.popup,1,'通信障害だけでは認証画面を開かない');
+  console.log('認証: 起動時の無操作・再読込での初回認証・既存認証の再利用・認証回復: OK');
   console.log('SharePoint取得/ページ送り・本人登録・条件付き更新・403/404/412/429・保存結果不明・トークン送信先: OK');
 })().catch(e=>{console.error(e);process.exitCode=1;});

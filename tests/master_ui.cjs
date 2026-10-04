@@ -16,7 +16,7 @@ function record(id,owner) {
     createdBy:{id:owner,name:owner},modifiedBy:{id:owner,name:owner},createdAt:'2026-10-01T00:00:00Z',modifiedAt:'2026-10-01T00:00:00Z'};
 }
 function setup(options={}) {
-  const ids={}, requests=[], saves=[], connections=[], state={connectError:options.connectError,saveError:null,storageReads:0};
+  const ids={}, requests=[], saves=[], connections=[], state={connectError:options.connectError,saveError:null,storageReads:0,connectModes:[]};
   class Element {
     constructor(tag) {this.tag=tag;this.children=[];this.value='';this.hidden=false;this.disabled=false;this.checked=false;this.listeners={};this._text='';}
     set id(id){this._id=id;ids[id]=this;} get id(){return this._id;}
@@ -30,7 +30,17 @@ function setup(options={}) {
   }
   for(const m of html.matchAll(/\bid="([^"]+)"/g)){const e=new Element('div');e.id=m[1];}
   const document={getElementById:id=>ids[id],createElement:tag=>new Element(tag)};
+  const cookieJar=options.cookieJar || {}, cookieWrites=[];
+  Object.defineProperty(document,'cookie',{
+    get(){if(options.cookieBlocked)throw new Error('Cookies blocked');return Object.keys(cookieJar).map(name=>name+'='+cookieJar[name]).join('; ');},
+    set(value){
+      if(options.cookieBlocked)throw new Error('Cookies blocked');
+      cookieWrites.push(value);
+      const pair=value.split(';')[0], split=pair.indexOf('=');cookieJar[pair.slice(0,split)]=pair.slice(split+1);
+    }
+  });
   const context={document,Promise,Date,URL,console,InvoiceMasterData:D,INVOICE_SHAREPOINT_CONFIG:options.live?config:{},
+    location:{pathname:'/invoice/index.html',protocol:options.protocol || 'http:'},
     // 旧版のブラウザ個別設定が残っていても、configファイル以外を参照しないことを検証する。
     localStorage:{getItem:()=>{state.storageReads++;return JSON.stringify({...config,siteUrl:'https://old.sharepoint.com/sites/old'});},setItem(){},removeItem(){}},confirm:()=>true,
     XMLHttpRequest:class {
@@ -38,7 +48,7 @@ function setup(options={}) {
       send(){requests.push(this.url);Promise.resolve().then(()=>{this.status=200;this.responseText=fs.readFileSync(path.join(root,this.url),'utf8');this.onload();});}
     },
     InvoiceSharePoint:{validateConfig:SP.validateConfig,createClient:connectionConfig=>(connections.push(connectionConfig),{
-      connect:async()=>{if(state.connectError)throw state.connectError;return {user:{id:'alice',name:'Alice',email:'alice@example.invalid'},
+      connect:async interactive=>{state.connectModes.push(interactive);if(state.connectError)throw state.connectError;return {user:{id:'alice',name:'Alice',email:'alice@example.invalid'},
         records:{address:options.empty?[]:[record('1','alice'),record('2','bob')],vendor:[]}};},
       save:async(kind,fields,existing)=>{saves.push({kind,fields,existing});if(state.saveError)throw state.saveError;
         return {...record(existing?existing.id:'3','alice'),title:fields.Title,lines:[fields.Line1,fields.Line2,fields.Line3,fields.Line4,fields.Line5],etag:'"v2"'};}
@@ -50,7 +60,7 @@ function setup(options={}) {
   const input=(id,value)=>{ids[id].value=value;if(ids[id].oninput)ids[id].oninput();if(ids[id].listeners.input)ids[id].listeners.input();};
   const use=(id)=>{ids.addressSelect.value=id;ids.addressSelect.onchange();click('addressMaster','この宛先を使用');};
   function confirm(){const p=ids.addressEditor.children.find(c=>c.className==='master-review');assert(p);p.children.find(c=>c.tag==='button').onclick();}
-  return {ids,requests,saves,connections,state,context,click,input,use,confirm,buttons};
+  return {ids,requests,saves,connections,state,context,click,input,use,confirm,buttons,cookieJar,cookieWrites};
 }
 (async()=>{
   const t=setup();await next();
@@ -64,6 +74,8 @@ function setup(options={}) {
   t.ids.masterTest.onclick();await next();assert.equal(t.ids.toText.value,'今回だけの宛先','テスト再読込で保持');
   t.context.invoiceMasterChanged('address');assert.match(t.ids.addressProvenance.textContent,/未選択/);assert.equal(t.ids.toText.value,'今回だけの宛先');
   const live=setup({live:true});await next();assert.match(live.ids.masterStatus.textContent,/接続済み/);
+  assert.equal(live.ids.masterSignIn,undefined,'専用サインインボタンなし');
+  assert.deepEqual(live.state.connectModes,[false],'起動時は対話認証なし');
   assert.equal(live.connections[0],config,'configファイルの設定をそのまま接続に使用');
   assert.equal(live.state.storageReads,0,'ブラウザ個別設定による上書きなし');
   assert.match(live.ids.masterUser.textContent,/Alice/);
@@ -76,6 +88,7 @@ function setup(options={}) {
   live.click('addressEditor','登録内容を更新');live.confirm();await next();
   assert.equal(live.ids.toText.value,'競合時の入力');assert(live.buttons('addressEditor').find(b=>b.textContent==='登録内容を更新').disabled);
   live.ids.masterReload.onclick();await next();assert.equal(live.ids.toText.value,'競合時の入力');
+  assert.deepEqual(live.state.connectModes,[false,true],'再読込の操作時は必要に応じて認証可能');
   assert(live.buttons('addressEditor').find(b=>b.textContent==='登録内容を更新').disabled,'再読込だけでは古い版を新版にしない');
   live.use('1');live.state.saveError=Object.assign(new Error('保存結果不明'),{uncertain:true});
   live.click('addressEditor','SharePointに新規登録');live.confirm();await next();
@@ -84,5 +97,36 @@ function setup(options={}) {
   const denied=setup({live:true,connectError:SP.httpError(403)});await next();assert.match(denied.ids.masterStatus.textContent,/権限/);assert.equal(denied.requests.length,0);
   const empty=setup({live:true,empty:true});await next();assert.match(empty.ids.masterStatus.textContent,/接続済み/);assert.equal(empty.requests.length,0);
   assert(!empty.buttons('addressEditor').find(b=>b.textContent==='SharePointに新規登録').disabled);
+  const preferences=setup({protocol:'https:'});await next();
+  assert.equal(preferences.ids.addressMine.disabled,false,'テスト表示中もチェック設定を変更できる');
+  preferences.ids.addressMine.checked=true;preferences.ids.addressMine.onchange();
+  assert.equal(preferences.ids.vendorMine.checked,false,'宛先と業者は独立');
+  assert.match(preferences.cookieWrites[0],/Path=\/invoice\//);
+  assert.match(preferences.cookieWrites[0],/Max-Age=31536000/);
+  assert.match(preferences.cookieWrites[0],/SameSite=Lax; Secure/);
+  const restored=setup({cookieJar:preferences.cookieJar});await next();
+  assert.equal(restored.ids.addressMine.checked,true,'画面の再表示で復元');
+  assert.equal(restored.ids.addressSelect.children.length,3,'テストCSVは本人の代用をせず全件表示');
+  assert.match(restored.ids.addressMineHint.textContent,/SharePoint接続後/);
+  const filtered=setup({live:true,cookieJar:preferences.cookieJar});await next();
+  assert.equal(filtered.ids.addressMine.checked,true);
+  assert.equal(filtered.ids.addressSelect.children.length,2,'接続時に本人の1件だけ表示');
+  assert.equal(filtered.ids.addressSelect.children[1].value,'1');
+  filtered.use('1');filtered.input('toText','保存しても設定保持');
+  filtered.click('addressEditor','登録内容を更新');filtered.confirm();await next();
+  assert.equal(filtered.ids.addressMine.checked,true,'共有情報の更新後もチェック状態を保持');
+  filtered.ids.masterTest.onclick();await next();assert.equal(filtered.ids.addressMine.checked,true,'テスト切替で消さない');
+  filtered.ids.masterReload.onclick();await next();assert.equal(filtered.ids.addressSelect.children.length,2,'再接続時に絞り込み復元');
+  filtered.ids.vendorMine.checked=true;filtered.ids.vendorMine.onchange();
+  filtered.ids.addressMine.checked=false;filtered.ids.addressMine.onchange();
+  assert(!filtered.cookieWrites[0].includes('; Secure'),'HTTP開発環境でも保存可能');
+  const unchecked=setup({live:true,cookieJar:preferences.cookieJar});await next();
+  assert.equal(unchecked.ids.addressMine.checked,false,'チェック解除も保存');
+  assert.equal(unchecked.ids.vendorMine.checked,true,'業者の設定は独立して復元');
+  assert.equal(unchecked.ids.addressSelect.children.length,3,'チェック解除後は他の人の情報も表示');
+  const blocked=setup({live:true,cookieBlocked:true});await next();
+  blocked.ids.addressMine.checked=true;blocked.ids.addressMine.onchange();
+  assert.equal(blocked.ids.addressSelect.children.length,2,'Cookieが使えなくても現在の画面は操作可能');
+  console.log('Cookie: 宛先/業者別の保存と復元・解除・テスト切替・保存後保持・パス/HTTPS・Cookie制限時: OK');
   console.log('マスタ画面: CSV切替・入力保持・登録者表示・本人/他人・保存確認・競合・保存結果不明・403/404/0件: OK');
 })().catch(e=>{console.error(e);process.exitCode=1;});
