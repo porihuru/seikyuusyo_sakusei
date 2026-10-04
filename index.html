@@ -5,183 +5,133 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>納入台帳PDFから請求書作成</title>
-  <style>
-    body {
-      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-      font-size: 14px;
-      margin: 10px;
-      position: relative;
-    }
-    h1 {
-      font-size: 18px;
-      margin: 0 0 6px;
-    }
-    textarea {
-      box-sizing: border-box;
-    }
-    #pdfInput, #noticeInput {
-      width: 100%;
-      padding: 12px 0;
-    }
-    button {
-      margin-right: 6px;
-      padding: 4px 12px;
-      font-size: 12px;
-    }
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      margin-top: 8px;
-    }
-    th, td {
-      border: 1px solid #ccc;
-      padding: 3px 4px;
-      font-size: 12px;
-      vertical-align: top;
-    }
-    th {
-      background: #eee;
-    }
-    .small {
-      font-size: 11px;
-      color: #555;
-    }
-    #headerBox {
-      margin-top: 8px;
-      padding: 4px 6px;
-      border: 1px solid #999;
-      background: #fafafa;
-      white-space: pre-line;
-    }
-    #sumBox {
-      margin-top: 6px;
-      padding: 4px 6px;
-      border: 1px solid #999;
-      background: #f6f6f6;
-      white-space: pre-line;
-    }
-    .version-label {
-      position: absolute;
-      right: 10px;
-      top: 4px;
-      font-size: 11px;
-      color: #666;
-    }
-    .spec-input,
-    .name-input,
-    .unit-input,
-    .qty-input,
-    .price-input {
-      width: 100%;
-      box-sizing: border-box;
-      font-size: 12px;
-    }
-    .unit-input {
-      text-align: center;
-    }
-    .spec-input { min-width: 220px; resize: vertical; }
-    #result { overflow-x: auto; }
-    .qty-input,
-    .price-input {
-      text-align: right;
-    }
-    #bulkSpecText {
-      font-size: 12px;
-      padding: 2px 4px;
-      width: 160px;
-      box-sizing: border-box;
-      margin-right: 4px;
-    }
-    #toText,
-    #vendorText {
-      width: 100%;
-      box-sizing: border-box;
-      font-size: 12px;
-    }
-    #billDate {
-      font-size: 12px;
-      padding: 2px 4px;
-      box-sizing: border-box;
-    }
-  </style>
+  <link rel="stylesheet" href="casks/app.css">
 </head>
 <body>
-  <!-- 右上のバージョン情報 -->
-  <div class="version-label" id="versionLabel">
-    v2026.09.10-pdf-01
-  </div>
-
-  <h1>納入台帳PDFから請求書作成</h1>
-  <p class="small">
-    納入台帳のPDFを1件選択してください。全ページの明細と合計を確認して読み込みます。<br>
-    済通知も選択すると、同じ品名の規格を明細に反映します。どちらから選択しても構いません。<br>
-    読み込み後、宛先・業者情報・日付を設定し、請求書を印刷できます。
-  </p>
-
-  <label for="pdfInput">納入台帳PDF</label>
-  <input id="pdfInput" type="file" accept=".pdf,application/pdf">
-  <div id="pdfStatus" role="status" aria-live="polite">PDFを選択してください。</div>
-  <div style="margin-top:12px; border-top:1px solid #ccc; padding-top:8px;">
-    <label for="noticeInput">済通知PDF（規格のコピー用・任意）</label>
-    <input id="noticeInput" type="file" accept=".pdf,application/pdf">
-    <div id="noticeStatus" role="status" aria-live="polite">済通知PDFを選択すると、品名が一致して規格がある明細にコピーします。</div>
-    <div id="noticeDetails" class="small" style="white-space:pre-line;"></div>
-    <button id="btnClearNotice" type="button" style="margin-top:6px;">済通知を解除</button>
-  </div>
-
-  <div style="margin-top: 6px;">
-    <button id="btnClear">クリア</button>
-  </div>
-
-  <!-- 納地・業者名などのヘッダー情報表示 -->
-  <div id="headerBox" class="small">
-    ここに納地・業者名ヘッダーが表示されます。
-  </div>
-
-  <!-- 日付入力（宛先の上） -->
-  <div id="dateBox" class="small" style="margin-top: 6px;">
-    日付:
-    <input id="billDate" type="text" placeholder="2025-10-31（年-月-日）">
-  </div>
-
-  <!-- 宛先・業者名（宛先用）入力 -->
-  <div id="addressBox" class="small" style="margin-top: 6px;">
-    <div>
-      宛先（3行）:
-      <br>
-      <textarea id="toText" rows="3" placeholder="例）滝川駐屯地 会計隊 御中&#10;〒000-0000 滝川市...&#10;TEL 0123-45-6789"></textarea>
+  <header class="app-header">
+    <div class="header-inner">
+      <div>
+        <p class="eyebrow">請求書作成ツール</p>
+        <h1>納入台帳から請求書を作成</h1>
+        <p class="header-description">PDFの明細を確認・編集して、そのまま請求書へ。</p>
+      </div>
+      <div class="header-meta">
+        <span class="privacy-label">PDFはこのブラウザ内で処理します</span>
+        <div class="version-label" id="versionLabel">v2026.10.04-master-01</div>
+        <div id="masterUser" class="small">利用中：未サインイン</div>
+      </div>
     </div>
-    <div style="margin-top: 4px;">
-      業者名（5行）:
-      <br>
-      <textarea id="vendorText" rows="5" placeholder="1行目に業者名が自動入力されます。&#10;2行目以降に住所・TEL・担当者などを記入してください。"></textarea>
-    </div>
-  </div>
+  </header>
+  <main class="app-main">
+    <ol class="steps" aria-label="請求書作成の手順">
+      <li><span>01</span>PDFを読み込む</li>
+      <li><span>02</span>請求先を設定</li>
+      <li><span>03</span>明細を確認・印刷</li>
+    </ol>
+    <section class="panel" aria-labelledby="uploadHeading">
+      <div class="section-heading">
+        <div>
+          <div class="heading-title"><span class="step-number" aria-hidden="true">01</span><h2 id="uploadHeading">PDFを読み込む</h2></div>
+          <p class="section-description">台帳の全ページを読み込み、明細と原本の合計を照合します。</p>
+        </div>
+        <button id="btnClear" type="button" class="secondary-button">読み込みをクリア</button>
+      </div>
+      <div class="two-columns">
+        <div class="column">
+          <div class="upload-box upload-box-primary">
+            <label class="field-label" for="pdfInput">納入台帳PDF<span class="badge badge-required">必須</span></label>
+            <p class="field-hint" id="pdfHint">最終集計ページまで含む、1台帳分のPDFを選択してください。</p>
+            <input id="pdfInput" type="file" accept=".pdf,application/pdf" aria-describedby="pdfHint pdfStatus">
+            <div id="pdfStatus" class="upload-status" role="status" aria-live="polite">PDFを選択してください。</div>
+          </div>
+        </div>
+        <div class="column">
+          <div class="upload-box">
+            <label class="field-label" for="noticeInput">済通知PDF<span class="badge">任意</span></label>
+            <p class="field-hint" id="noticeHint">同じ品名の規格をコピーします。台帳より先に選択しても構いません。</p>
+            <input id="noticeInput" type="file" accept=".pdf,application/pdf" aria-describedby="noticeHint noticeStatus">
+            <div id="noticeStatus" class="upload-status" role="status" aria-live="polite">済通知PDFを選択すると、品名が一致して規格がある明細にコピーします。</div>
+            <div id="noticeDetails" class="small"></div>
+            <button id="btnClearNotice" type="button" class="secondary-button">済通知を解除</button>
+          </div>
+        </div>
+      </div>
+      <div id="headerBox" class="small" aria-live="polite">ここに納地・業者名ヘッダーが表示されます。</div>
+    </section>
+    <section class="panel" aria-labelledby="addressHeading">
+      <div class="section-heading">
+        <div>
+          <div class="heading-title"><span class="step-number" aria-hidden="true">02</span><h2 id="addressHeading">請求先・業者情報</h2></div>
+          <p class="section-description">登録済みの情報を選ぶか、直接入力してください。共有情報の保存は登録・更新ボタンから行います。</p>
+        </div>
+        <button id="btnGyousya" type="button" class="secondary-button">旧業者ファイルを使用</button>
+      </div>
+      <div class="master-connection">
+        <div id="masterStatus" role="status" aria-live="polite">宛先・業者の登録情報を確認しています…</div>
+        <div class="master-connection-actions">
+          <button id="masterSignIn" type="button" class="secondary-button">Microsoft 365にサインイン</button>
+          <button id="masterReload" type="button" class="secondary-button">共有リストを再読込</button>
+          <button id="masterTest" type="button" class="secondary-button">テストCSVを表示</button>
+        </div>
+      </div>
+      <div id="dateBox" class="date-field">
+        <label for="billDate" class="field-label">請求日</label>
+        <input id="billDate" type="text" placeholder="YYYY-MM-DD" aria-describedby="dateHint">
+        <span id="dateHint" class="small">空欄の場合は、請求書の印刷時に当日の日付を使用します。</span>
+      </div>
+      <div id="addressBox" class="two-columns">
+        <div class="column">
+          <div id="addressMaster" class="master-picker"></div>
+          <label for="toText" class="field-label">宛先<span class="badge">3行</span></label>
+          <textarea id="toText" rows="5" placeholder="例）滝川駐屯地 会計隊 御中&#10;〒000-0000 滝川市...&#10;TEL 0123-45-6789"></textarea>
+          <div id="addressProvenance" class="master-provenance" aria-live="polite">登録情報は未選択です。</div>
+          <div id="addressEditor" class="master-editor"></div>
+          <span class="field-note">宛名・住所・電話番号などを入力してください。</span>
+        </div>
+        <div class="column">
+          <div id="vendorMaster" class="master-picker"></div>
+          <label for="vendorText" class="field-label">業者情報<span class="badge">5行</span></label>
+          <textarea id="vendorText" rows="5" placeholder="1行目に業者名が自動入力されます。&#10;2行目以降に住所・TEL・担当者などを記入してください。"></textarea>
+          <div id="vendorProvenance" class="master-provenance" aria-live="polite">登録情報は未選択です。</div>
+          <div id="vendorEditor" class="master-editor"></div>
+          <span class="field-note">「旧業者ファイルを使用」から既存の gyousya.txt も読み込めます。</span>
+        </div>
+      </div>
+    </section>
+    <section class="panel" aria-labelledby="detailsHeading">
+      <div class="section-heading">
+        <div>
+          <div class="heading-title"><span class="step-number" aria-hidden="true">03</span><h2 id="detailsHeading">明細を確認・印刷</h2></div>
+          <p class="section-description">品名・規格・数量・単価を編集できます。数量や単価を変えると金額を再計算します。</p>
+        </div>
+      </div>
+      <div class="bulk-toolbar">
+        <label for="bulkSpecText">規格の一括入力</label>
+        <input id="bulkSpecText" type="text" placeholder="全明細に設定する規格" aria-describedby="bulkHint">
+        <button id="btnBulkSpec" type="button">規格欄一括入力</button>
+        <span id="bulkHint" class="small">すべての明細の規格を上書きします。</span>
+      </div>
+      <div id="summary" class="small" role="status" aria-live="polite"></div>
+      <div id="result" role="region" aria-label="請求明細（横にスクロールできます）" tabindex="0"></div>
+      <div class="empty-state">
+        <div class="empty-symbol" aria-hidden="true">≡</div>
+        <p class="empty-title">読み込んだ明細がここに表示されます</p>
+        <p class="small">「01 PDFを読み込む」から納入台帳PDFを選択してください。</p>
+      </div>
+      <div id="sumBox"></div>
+      <div class="output-bar">
+        <p class="output-note">明細と合計を確認してから印刷してください。</p>
+        <div class="output-actions">
+          <button id="btnCopyAll" type="button">全データコピー</button>
+          <button id="btnPrintText" type="button">テキスト印刷</button>
+          <button id="btnPrint" type="button" class="primary-button">請求書を印刷</button>
+        </div>
+      </div>
+      <span id="copyMsg" class="small" role="status" aria-live="polite"></span>
+    </section>
+    <p class="page-footer">請求明細と今回だけの編集内容は保存されません。宛先・業者マスタは登録・更新した場合にSharePointへ保存されます。</p>
+  </main>
 
-  <div style="margin-top: 6px;">
-    <!-- 規格一括入力テキスト＋ボタン＋全データコピー＋印刷 -->
-    <input id="bulkSpecText" type="text" placeholder="規格欄 一括入力">
-    <button id="btnBulkSpec">規格欄一括入力</button>
-
-    <!-- ★ここを追加★ -->
-    <button id="btnGyousya">業者名等反映</button>
-    <!-- ★ここまで追加★ -->
-
-    <button id="btnCopyAll">全データコピー</button>
-
-    <!-- ★これを追加★ -->
-    <button id="btnPrintText">テキスト印刷</button>
-    <!-- ★ここまで追加★ -->
-
-    <button id="btnPrint">印刷</button>
-    <span id="copyMsg" class="small"></span>
-  </div>
-
-  <div id="summary" class="small" style="margin-top: 6px;"></div>
-  <div id="result"></div>
-  <div id="sumBox" class="small"></div>
-
-  <!-- 解析用パーサ -->
   <script src="vendor/pdfjs/pdf.js"></script>
   <script src="casks/ledger_pdf_parser.js"></script>
   <script src="casks/notice_pdf_parser.js"></script>
@@ -196,7 +146,7 @@
 <script>
 // 納入台帳テキスト解析 メイン側 v2025.11.23-paste-13
 
-var VERSION_TEXT = '納入台帳PDF 請求書作成 v2026.09.10-pdf-01';
+var VERSION_TEXT = '納入台帳PDF 請求書作成 v2026.10.04-master-01';
 var TAX_RATE = 0.08; // 消費税率（8%）
 
 // コピー用保持
@@ -569,6 +519,7 @@ function renderTable(rows, summary) {
       }
       lines[0] = (sv.vendor || fullVendor);
       vendorTA.value = lines.join('\n');
+      if (window.invoiceMasterChanged) window.invoiceMasterChanged('vendor');
     }
   } else {
     var headerTextMulti = '業者名（' + vendorList.length + '件）:\n' + vendorList.join('\n');
@@ -793,6 +744,7 @@ function copyTextToClipboard(text, label) {
   document.getElementById('pdfInput').value = '';
   document.getElementById('pdfStatus').textContent = 'PDFを選択してください。';
   document.getElementById('vendorText').value = '';
+  if (window.invoiceMasterChanged) window.invoiceMasterChanged('vendor');
   document.getElementById('result').innerHTML   = '';
   document.getElementById('summary').innerHTML  = '';
   document.getElementById('headerBox').innerHTML = 'ここに納地・業者名ヘッダーが表示されます。';
@@ -924,5 +876,9 @@ function copyTextToClipboard(text, label) {
 </script>
 <script src="casks/pdf_file_reader.js"></script>
 <script src="casks/pdf_input.js"></script>
+<script src="casks/sharepoint-config.js"></script>
+<script src="casks/master_data.js"></script>
+<script src="casks/sharepoint_client.js"></script>
+<script src="casks/master_ui.js"></script>
 </body>
 </html>

@@ -213,6 +213,7 @@
           (rec.toLines[0] || '') + '\n' +
           (rec.toLines[1] || '') + '\n' +
           (rec.toLines[2] || '');
+        if (global.invoiceMasterChanged) global.invoiceMasterChanged('address');
       }
 
       // 業者 5 行
@@ -224,6 +225,7 @@
           (vls[2] || '') + '\n' +
           (vls[3] || '') + '\n' +
           (vls[4] || '');
+        if (global.invoiceMasterChanged) global.invoiceMasterChanged('vendor');
       }
     });
   }

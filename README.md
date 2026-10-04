@@ -8,10 +8,20 @@
 1. Webサーバーから `index.html` を開き、納入台帳PDFを選択します。
 2. 原本との照合完了を確認します。
 3. 規格をコピーする場合は「済通知PDF」で対応する契約済通知書を選択します。済通知を先に選択しても構いません。
-4. 日付（YYYY-MM-DD）、宛先、業者情報を入力します。「業者名等反映」では既存の `gyousya.txt` を選択できます。
+4. 日付（YYYY-MM-DD）を入力し、宛先・業者の候補を選んで登録者を確認してから「使用」を押します。直接入力もできます。「旧業者ファイルを使用」では既存の `gyousya.txt` を選択できます。
 5. 必要に応じて明細や規格を修正し、「印刷」で請求書を開きます。
 
-日付を空欄にすると印刷時の当日を使用します。入力内容の永続保存機能はありません。
+日付を空欄にすると印刷時の当日を使用します。請求明細や今回だけの編集内容は保存しません。宛先・業者の共有マスタは、明示的に登録・更新した場合にSharePointへ保存します。
+
+## 宛先・業者のSharePoint共有
+
+接続先が未設定の場合、同梱のテストCSVを表示します。架空の宛先・業者を選択して請求書に反映でき、登録者・登録日時・最終更新者を確認できます。テスト表示中はSharePointへの登録・更新はできません。
+
+SharePoint Onlineのサイトとリスト、Microsoft Entraのアプリを設定すると、Microsoft 365の本人アカウントで登録・更新できます。検索、本人の登録情報への絞り込み、保存前の内容確認、ETagによる同時編集の検出に対応します。入力欄の編集だけでは共有マスタを更新しません。
+
+接続手順・列定義・権限設定は [SHAREPOINT_SETUP.md](SHAREPOINT_SETUP.md) を参照してください。管理者が `casks/sharepoint-config.js` に接続情報を事前入力して配布します。アプリはこのファイルだけを読み込み、画面での接続設定やブラウザごとの上書きは行いません。
+
+未設定・接続時のサイト/リスト未検出ではテストCSVへ自動で切り替えます。未サインイン・権限不足・通信障害では原因を表示し、テスト表示を手動で選べます。接続成功で0件の場合は、空の共有リストとして新規登録できます。
 
 ## 済通知からの規格コピー
 
@@ -36,8 +46,9 @@
 
 ## 社内Webサーバーへの配置
 
-`index.html`、`casks/`、`vendor/` を同じ構成で配置してください。HTMLとJavaScriptの静的配信のみで動きます。
-PDFはブラウザ内で処理し、サーバーへアップロードしません。CDNやインターネットへの接続は不要です。
+`index.html`、`auth.html`、`SHAREPOINT_SETUP.md`、`casks/`、`data/`、`vendor/` を同じ構成で配置してください。HTML・CSS・JavaScriptの静的配信のみで動きます。画面のスタイルは `casks/app.css` にまとめています。
+PDFはブラウザ内で処理し、サーバーへアップロードしません。PDF処理とテストCSV表示にはインターネット接続は不要です。SharePoint連携時にはMicrosoftの認証・APIへの接続が必要です。ライブラリはローカル同梱しておりCDNは使用しません。
+`.csv` はUTF-8の `text/csv`、`.md` はUTF-8の `text/plain` で配信してください。
 `.bcmap` は `application/octet-stream` として配信できるようにしてください（IISなどではMIME設定が必要な場合があります）。
 開発用の `.vscode/`、検証用の `tests/`、作業ファイルの `tmp/` は配布不要です。
 
@@ -56,7 +67,7 @@ Node.jsがあるPCでVS CodeのF5を押すと、ローカルサーバーを起�
 
 ## ブラウザ対応とライブラリ
 
-Edge 95／IE11を対象として、アプリのJavaScriptはES5構文、日付はテキスト入力を使用しています。
+従来のPDF処理はEdge 95／IE11を対象とし、アプリのJavaScriptはES5構文、日付はテキスト入力を使用しています。SharePoint連携はHTTPS（開発時はlocalhost）と現行Edge／Chromeを対象にします。IE11ではSharePoint認証は利用できません。
 PDF.js 2.6.347のES5版と日本語CMapをローカル同梱しています。ライセンスは `vendor/pdfjs/LICENSE` です。
 文字抽出だけに使用し、`isEvalSupported: false` を指定しています。
 参考: https://github.com/mozilla/pdfjs-dist/tree/v2.6.347
@@ -64,6 +75,8 @@ PDF.js 2.6.347のES5版と日本語CMapをローカル同梱しています。�
 この環境にあるEdgeで6件のPDF読込・請求書HTML・外部通信なし・失敗時のクリアを検証済みです。
 追加の4組についても、規格反映・選択順・通知解除・手入力保持・コピー・請求書表示・読込失敗・キャンセル・外部通信なしを検証済みです。
 Edge 95／IE11の実機での表示・印刷確認は未実施です。
+
+SharePoint認証にはMSAL Browser 4.29.0を同梱しています（`vendor/msal/LICENSE`）。実テナントの接続・権限・本人登録は、管理者による設定後に [受入確認](SHAREPOINT_SETUP.md#本番接続後の受入確認) が必要です。
 
 ## 検証
 
@@ -74,3 +87,9 @@ Edge 95／IE11の実機での表示・印刷確認は未実施です。
 済通知の単体検証: `node tests/notice_pdf_parser.cjs`
 
 追加の8件を使う場合: `node tests/verify-notices.cjs "PDFがあるフォルダー"`
+
+マスタのCSV・入力・登録者判定: `node tests/master_data.cjs`
+
+SharePointの模擬通信（登録・更新・ETag・権限・保存結果不明）: `node tests/sharepoint_client.cjs`
+
+マスタ画面の状態遷移（テスト切替・入力保持・保存確認）: `node tests/master_ui.cjs`

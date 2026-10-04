@@ -69,6 +69,7 @@
     var file = input.files[0];
     global.renderTable([], null);
     document.getElementById('vendorText').value = '';
+    if (global.invoiceMasterChanged) global.invoiceMasterChanged('vendor');
     document.getElementById('bulkSpecText').value = '';
     if (notice) global.applyNoticeSpecifications();
     ledgerReader.load(file, function (progress) { message(status, file.name + '：' + progress); }, function (pages) {
