@@ -21,6 +21,11 @@ h1 { margin: 0; color: #20354c; font-size: 25px; line-height: 1.5; }
 .header-meta { text-align: right; margin-left: 24px; flex-shrink: 0; }
 .privacy-label { display: inline-block; border: 1px solid #cde4dc; border-radius: 20px; padding: 4px 12px; color: #326359; background: #f1f8f5; font-size: 12px; }
 .version-label { margin-top: 8px; color: #718093; font-size: 11px; }
+.theme-control { margin-top: 10px; }
+.theme-control button { margin-top: 4px; }
+.system-log-entries { list-style: none; padding: 0; margin: 0; }
+.system-log-entries li { border-top: 1px solid #dce3eb; padding: 10px 0; overflow-wrap: break-word; }
+.system-log-entries time { display: block; font-variant-numeric: tabular-nums; }
 .steps { display: flex; flex-wrap: wrap; list-style: none; margin: 0 0 22px; padding: 0; color: #5b6c7e; font-size: 13px; }
 .steps li { margin: 0 24px 4px 0; }
 .steps span { color: #257975; font-weight: bold; margin-right: 7px; }
@@ -43,6 +48,8 @@ h2 { margin: 0; font-size: 18px; color: #21384e; }
 #pdfInput, #noticeInput { display: block; width: 100%; max-width: 100%; padding: 8px 0; font-size: 13px; }
 input[type="file"]::file-selector-button { border: 1px solid #bac8d4; border-radius: 4px; background: #fff; padding: 7px 12px; color: #30465d; margin-right: 10px; cursor: pointer; }
 .upload-status { margin-top: 12px; padding-top: 12px; border-top: 1px solid #dce5e9; font-size: 12px; word-wrap: break-word; }
+.upload-status[data-status="error"] { color: #a00000; }
+.upload-status[data-status="success"] { color: #244b30; }
 #noticeDetails { white-space: pre-line; word-wrap: break-word; }
 #noticeDetails:empty { display: none; }
 #btnClearNotice { margin-top: 12px; }
@@ -120,6 +127,78 @@ button.primary-button:hover { background: #195e59; border-color: #195e59; }
 .master-review { border: 2px solid #7cafaa; padding: 14px; border-radius: 6px; margin-top: 12px; background: #f2f8f6; }
 .master-review h3 { margin: 0; font-size: 15px; }
 #masterUser { margin-top: 8px; max-width: 370px; word-wrap: break-word; }
+/* CSS変数に依存せず、旧ブラウザでも背景と文字色をまとめて切り替える。 */
+@media screen {
+  html[data-theme="dark"] { color-scheme: dark; background: #111923; }
+  html[data-theme="dark"] body { background: #111923; color: #e3eaf3; }
+  html[data-theme="dark"] .app-header,
+  html[data-theme="dark"] .panel { background: #182430; border-color: #36485d; box-shadow: none; }
+  html[data-theme="dark"] h1,
+  html[data-theme="dark"] h2,
+  html[data-theme="dark"] .field-label { color: #e3eaf3; }
+  html[data-theme="dark"] .header-description,
+  html[data-theme="dark"] .section-description,
+  html[data-theme="dark"] .small,
+  html[data-theme="dark"] .steps,
+  html[data-theme="dark"] .field-hint,
+  html[data-theme="dark"] .field-note,
+  html[data-theme="dark"] .version-label,
+  html[data-theme="dark"] .page-footer,
+  html[data-theme="dark"] .output-note { color: #b0bfd0; }
+  html[data-theme="dark"] .eyebrow,
+  html[data-theme="dark"] .steps span { color: #8bdfce; }
+  html[data-theme="dark"] button { background: #25364a; border-color: #597087; color: #e3eaf3; }
+  html[data-theme="dark"] button:hover { background: #344b62; border-color: #80a0bc; }
+  html[data-theme="dark"] #btnTheme[aria-pressed="true"] { background: #234a46; border-color: #70c8b7; color: #a3eddb; }
+  html[data-theme="dark"] button.primary-button { background: #237771; border-color: #71c6bc; color: #fff; }
+  html[data-theme="dark"] button.primary-button:hover { background: #2b8981; }
+  html[data-theme="dark"] input[type="text"],
+  html[data-theme="dark"] textarea,
+  html[data-theme="dark"] .master-picker select { background: #111e2b; color: #e3eaf3; border-color: #52677e; }
+  html[data-theme="dark"] input[type="text"]:focus,
+  html[data-theme="dark"] textarea:focus { border-color: #78d5c4; }
+  html[data-theme="dark"] input::placeholder,
+  html[data-theme="dark"] textarea::placeholder { color: #9dadc1; }
+  html[data-theme="dark"] input[type="file"]::file-selector-button { background: #25364a; color: #e3eaf3; border-color: #597087; }
+  html[data-theme="dark"] .upload-box,
+  html[data-theme="dark"] .master-picker,
+  html[data-theme="dark"] .master-connection,
+  html[data-theme="dark"] .bulk-toolbar { background: #202f40; border-color: #40536a; }
+  html[data-theme="dark"] .upload-box-primary { background: #1b3337; border-color: #4d8a80; }
+  html[data-theme="dark"] .upload-status,
+  html[data-theme="dark"] .output-bar,
+  html[data-theme="dark"] .master-editor { border-color: #40536a; }
+  html[data-theme="dark"] .system-log-entries li { border-color: #40536a; }
+  html[data-theme="dark"] .badge { background: #34485e; color: #d0dbe6; }
+  html[data-theme="dark"] .privacy-label,
+  html[data-theme="dark"] .badge-required,
+  html[data-theme="dark"] .step-number { background: #25443f; color: #a3e4d4; border-color: #456e64; }
+  html[data-theme="dark"] #headerBox { background: #202f40; border-color: #718aa1; }
+  html[data-theme="dark"] .empty-state { background: #182430; border-color: #536a80; }
+  html[data-theme="dark"] .empty-symbol { border-color: #7891a8; color: #afc3d5; }
+  html[data-theme="dark"] .empty-title,
+  html[data-theme="dark"] #summary,
+  html[data-theme="dark"] .master-message,
+  html[data-theme="dark"] .master-picker > label,
+  html[data-theme="dark"] .master-editor > label { color: #c1d5e6; }
+  html[data-theme="dark"] th,
+  html[data-theme="dark"] td { border-color: #40536a; }
+  html[data-theme="dark"] th { background: #293d51; color: #e0e9f2; }
+  html[data-theme="dark"] tbody tr:nth-child(even) { background: #1e2d3e; }
+  html[data-theme="dark"] tbody tr:hover { background: #263f48; }
+  html[data-theme="dark"] #sumBox,
+  html[data-theme="dark"] .master-provenance,
+  html[data-theme="dark"] .master-review { background: #203c38; border-color: #568a7b; color: #c6e8dc; }
+  html[data-theme="dark"] .master-preview { background: #14222f; color: #c3d2e2; border-color: #40536a; }
+  html[data-theme="dark"] #copyMsg,
+  html[data-theme="dark"] .master-status-live,
+  html[data-theme="dark"] .upload-status[data-status="success"] { color: #91e0c5; }
+  html[data-theme="dark"] .master-status-test { color: #f4ce88; }
+  html[data-theme="dark"] .master-status-error,
+  html[data-theme="dark"] .upload-status[data-status="error"] { color: #ffb4ab; }
+  html[data-theme="dark"] a { color: #94caff; }
+}
+@media print { .system-log, .theme-control { display: none !important; } }
 @media (min-width: 1700px) { .header-inner, .app-main { max-width: 1560px; } }
 @media (max-width: 760px) {
   .header-inner, .app-main { padding: 20px 16px; }

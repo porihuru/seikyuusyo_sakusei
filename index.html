@@ -5,6 +5,7 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>納入台帳PDFから請求書作成</title>
+  <script src="casks/theme.js"></script>
   <link rel="stylesheet" href="casks/app.css">
 </head>
 <body>
@@ -19,10 +20,25 @@
         <span class="privacy-label">PDFはこのブラウザ内で処理します</span>
         <div class="version-label" id="versionLabel">v2026.10.04-master-01</div>
         <div id="masterUser" class="small">利用中：未サインイン</div>
+        <div class="theme-control">
+          <button id="btnTheme" type="button" class="secondary-button" aria-label="ダークモード" aria-pressed="false">ダークモード：オフ</button>
+          <button id="btnSystemLog" type="button" class="secondary-button" aria-expanded="false" aria-controls="systemLogPanel">システムログ</button>
+        </div>
       </div>
     </div>
   </header>
   <main class="app-main">
+    <section id="systemLogPanel" class="panel system-log" aria-labelledby="systemLogHeading" hidden>
+      <div class="section-heading">
+        <div>
+          <h2 id="systemLogHeading">システムログ</h2>
+          <p class="section-description">今回の起動時のSharePoint接続結果です。ログを開いても再接続しません。</p>
+        </div>
+        <button id="btnCloseSystemLog" type="button" class="secondary-button">ログを閉じる</button>
+      </div>
+      <ol id="systemLogEntries" class="system-log-entries" aria-live="polite" aria-relevant="additions"></ol>
+      <p class="small">起動時の記録のみ表示します。画面を再読み込みすると、新しい起動ログに切り替わります。</p>
+    </section>
     <ol class="steps" aria-label="請求書作成の手順">
       <li><span>01</span>PDFを読み込む</li>
       <li><span>02</span>請求先を設定</li>

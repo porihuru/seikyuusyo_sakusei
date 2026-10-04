@@ -7,7 +7,7 @@
   var notice = null, noticeFilename = '', noticeBusy = false;
   function message(element, text, error) {
     element.textContent = text;
-    element.style.color = error ? '#a00000' : '#244b30';
+    element.setAttribute('data-status', error ? 'error' : 'success');
   }
   function removeAutomaticSpecs() {
     global.currentRows.forEach(function (row) {

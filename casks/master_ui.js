@@ -48,6 +48,36 @@
     var d = new Date(value);
     return isNaN(d.getTime()) ? '日時不明' : d.toLocaleString('ja-JP');
   }
+  function startupLog(level, text) {
+    var entry = node('li'), now = new Date(), time = node('time', date(now), 'small');
+    var labels = { info: '確認', success: '成功', warning: '注意', error: '失敗' };
+    var classes = { info: '', success: 'master-status-live', warning: 'master-status-test', error: 'master-status-error' };
+    time.setAttribute('datetime', now.toISOString());
+    entry.appendChild(time);
+    entry.appendChild(node('span', labels[level] + '：' + text, classes[level]));
+    byId('systemLogEntries').appendChild(entry);
+  }
+  function startupFailure(e) {
+    // 認証応答や設定値をそのまま記録せず、接続状況だけを残す。
+    var messages = {
+      CONFIG: '接続設定が不正です。configファイルを確認してください。',
+      SIGNIN: '認証が必要なため接続を確認できません。「共有リストを再読込」から認証してください。',
+      AUTH: '認証ライブラリを読み込めません。配置ファイルとブラウザを確認してください。',
+      BROWSER: 'この環境では接続できません。HTTPSと現行のEdge／Chromeを使用してください。',
+      NETWORK: '通信できないかタイムアウトしました。ネットワークを確認してください。',
+      SCHEMA: 'SharePointリストの列設定が不正です。管理者に確認してください。',
+      '401': '認証の有効期限が切れています。「共有リストを再読込」から認証してください。',
+      '403': 'SharePointへのアクセス権限がありません。管理者に確認してください。',
+      '404': 'SharePointのサイトまたはリストが見つかりません。',
+      '429': 'SharePointへのアクセスが集中しています。'
+    };
+    startupLog('error', messages[e.code] || messages[e.status] || 'SharePointへの接続を確認できませんでした。接続設定・認証・通信環境を確認してください。');
+  }
+  function showSystemLog(open) {
+    byId('systemLogPanel').hidden = !open;
+    byId('btnSystemLog').setAttribute('aria-expanded', open ? 'true' : 'false');
+    byId(open ? 'btnCloseSystemLog' : 'btnSystemLog').focus();
+  }
   function person(p) { return (p.name || '不明') + (p.email ? '（' + p.email + '）' : p.id ? '［ID: ' + p.id + '］' : ''); }
   function signature() { return [config.tenantId, config.clientId, config.siteUrl, config.addressList, config.vendorList].join('|'); }
   function stamp(records) {
@@ -222,34 +252,53 @@
       request.send();
     });
   }
-  function testMode(reason) {
+  function testMode(reason, startup) {
     closeReview(); setBusy(true); mode = 'loading';
     status('テストCSVを読み込んでいます…');
     return Promise.all([csv('data/addresses.test.csv'), csv('data/vendors.test.csv')]).then(function (rows) {
       data = { address: rows[0], vendor: rows[1] }; mode = 'test'; user = null;
       setBusy(false); renderAll();
       status((reason ? reason + ' ' : '') + 'テストCSVを表示中・SharePointには保存されません。内容は架空です。');
-    }, function (e) { data = { address: [], vendor: [] }; mode = 'error'; setBusy(false); renderAll(); status(e.message, true); });
+      if (startup) startupLog('warning', 'テストCSVへ切り替えました（宛先 ' + rows[0].length + '件・業者 ' + rows[1].length + '件）。SharePointには保存されません。');
+    }, function (e) {
+      data = { address: [], vendor: [] }; mode = 'error'; setBusy(false); renderAll(); status(e.message, true);
+      if (startup) startupLog('error', 'テストCSVを読み込めませんでした。dataフォルダーの配置と通信環境を確認してください。');
+    });
   }
   function configured() { return !!(config.tenantId && config.clientId && config.siteUrl); }
-  function connect(interactive) {
+  function connect(interactive, startup) {
     if (busy) return;
-    if (!configured()) { testMode('SharePointの接続先が未設定です。'); return; }
+    if (startup) startupLog('info', '起動時のSharePoint接続確認を開始しました。');
+    if (!configured()) {
+      if (startup) startupLog('warning', 'SharePointの接続先が未設定のため、接続確認をスキップしました。');
+      testMode('SharePointの接続先が未設定です。', startup); return;
+    }
     closeReview(); setBusy(true); mode = 'loading'; data = { address: [], vendor: [] }; user = null; renderAll();
     status('SharePointを確認しています…');
-    if (!client) client = SP.createClient(config);
-    client.connect(interactive).then(function (result) {
+    var connection;
+    try {
+      if (!client) client = SP.createClient(config);
+      connection = client.connect(interactive);
+    } catch (e) { connection = Promise.reject(e); }
+    connection.then(function (result) {
       mode = 'sharepoint'; user = result.user; data = stamp(result.records); saveUncertain = false;
       setBusy(false); renderAll(); status('SharePoint接続済み。登録・更新はサインイン中の本人として保存します。');
+      if (startup) startupLog('success', 'SharePointに接続しました。宛先 ' + data.address.length + '件・業者 ' + data.vendor.length + '件を読み込みました。');
     }, function (e) {
       setBusy(false);
-      if (e.code === '404' || e.status === 404) { testMode(e.message); return; }
+      if (startup) startupFailure(e);
+      if (e.code === '404' || e.status === 404) { testMode(e.message, startup); return; }
       mode = 'error'; user = null; renderAll();
       status(e.message && e.code ? e.message : 'サインインできませんでした。キャンセルやポップアップ設定を確認し、解消しない場合は管理者に接続設定の確認を依頼してください。', true);
     });
   }
   kinds.forEach(build);
+  byId('btnSystemLog').onclick = function () { showSystemLog(byId('systemLogPanel').hidden); };
+  byId('btnCloseSystemLog').onclick = function () { showSystemLog(false); };
+  byId('systemLogPanel').addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' || e.keyCode === 27) { e.preventDefault(); showSystemLog(false); }
+  });
   byId('masterReload').onclick = function () { connect(true); };
   byId('masterTest').onclick = function () { if (!busy) testMode(''); };
-  if (configured()) connect(false); else testMode('SharePointの接続先が未設定です。');
+  connect(false, true);
 })(this);

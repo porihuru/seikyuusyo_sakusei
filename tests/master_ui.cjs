@@ -29,6 +29,7 @@ function setup(options={}) {
     focus(){}
   }
   for(const m of html.matchAll(/\bid="([^"]+)"/g)){const e=new Element('div');e.id=m[1];}
+  ids.systemLogPanel.hidden=true;
   const document={getElementById:id=>ids[id],createElement:tag=>new Element(tag)};
   const cookieJar=options.cookieJar || {}, cookieWrites=[];
   Object.defineProperty(document,'cookie',{
@@ -45,10 +46,10 @@ function setup(options={}) {
     localStorage:{getItem:()=>{state.storageReads++;return JSON.stringify({...config,siteUrl:'https://old.sharepoint.com/sites/old'});},setItem(){},removeItem(){}},confirm:()=>true,
     XMLHttpRequest:class {
       open(method,url){this.url=url;} overrideMimeType(){}
-      send(){requests.push(this.url);Promise.resolve().then(()=>{this.status=200;this.responseText=fs.readFileSync(path.join(root,this.url),'utf8');this.onload();});}
+      send(){requests.push(this.url);Promise.resolve().then(()=>{this.status=options.csvError?404:200;this.responseText=fs.readFileSync(path.join(root,this.url),'utf8');this.onload();});}
     },
     InvoiceSharePoint:{validateConfig:SP.validateConfig,createClient:connectionConfig=>(connections.push(connectionConfig),{
-      connect:async interactive=>{state.connectModes.push(interactive);if(state.connectError)throw state.connectError;return {user:{id:'alice',name:'Alice',email:'alice@example.invalid'},
+      connect:async interactive=>{state.connectModes.push(interactive);if(options.holdConnection)await new Promise(resolve=>{state.releaseConnection=resolve;});if(state.connectError)throw state.connectError;return {user:{id:'alice',name:'Alice',email:'alice@example.invalid'},
         records:{address:options.empty?[]:[record('1','alice'),record('2','bob')],vendor:[]}};},
       save:async(kind,fields,existing)=>{saves.push({kind,fields,existing});if(state.saveError)throw state.saveError;
         return {...record(existing?existing.id:'3','alice'),title:fields.Title,lines:[fields.Line1,fields.Line2,fields.Line3,fields.Line4,fields.Line5],etag:'"v2"'};}
@@ -67,11 +68,22 @@ function setup(options={}) {
   assert.match(t.ids.masterStatus.textContent,/テストCSV/);assert.equal(t.requests.length,2);
   assert.equal(t.state.storageReads,0,'config未設定時も過去の個別設定を読み込まない');
   assert.equal(t.connections.length,0,'過去の個別設定から接続しない');
+  assert(t.ids.systemLogPanel.hidden,'ログは初期状態で閉じる');
+  assert.match(t.ids.systemLogEntries.textContent,/接続先が未設定/);
+  assert.match(t.ids.systemLogEntries.textContent,/宛先 2件・業者 2件/);
+  assert.equal(t.ids.systemLogEntries.children.length,3);
+  assert(!isNaN(Date.parse(t.ids.systemLogEntries.children[0].children[0].datetime)),'確認日時を記録');
+  const initialLog=t.ids.systemLogEntries.textContent;
+  t.ids.btnSystemLog.onclick();assert(!t.ids.systemLogPanel.hidden);assert.equal(t.ids.btnSystemLog['aria-expanded'],'true');
+  t.ids.btnCloseSystemLog.onclick();assert(t.ids.systemLogPanel.hidden);assert.equal(t.ids.btnSystemLog['aria-expanded'],'false');
+  t.ids.btnSystemLog.onclick();t.ids.systemLogPanel.listeners.keydown({key:'Escape',preventDefault(){}});assert(t.ids.systemLogPanel.hidden);
+  assert.equal(t.requests.length,2,'ログの開閉でCSVを再取得しない');
   assert(t.buttons('addressEditor').every(b=>b.disabled));
   t.use('TEST-A001');assert.match(t.ids.toText.value,/第一会計隊/);assert.match(t.ids.addressProvenance.textContent,/佐藤/);
   t.input('toText','今回だけの宛先');assert.match(t.ids.addressProvenance.textContent,/編集あり/);
   t.ids.addressSelect.value='TEST-A002';t.ids.addressSelect.onchange();assert.equal(t.ids.toText.value,'今回だけの宛先','候補選択だけでは上書きしない');
   t.ids.masterTest.onclick();await next();assert.equal(t.ids.toText.value,'今回だけの宛先','テスト再読込で保持');
+  assert.equal(t.ids.systemLogEntries.textContent,initialLog,'手動でテストCSVを読み込んでも起動ログを変更しない');
   t.context.invoiceMasterChanged('address');assert.match(t.ids.addressProvenance.textContent,/未選択/);assert.equal(t.ids.toText.value,'今回だけの宛先');
   const live=setup({live:true});await next();assert.match(live.ids.masterStatus.textContent,/接続済み/);
   assert.equal(live.ids.masterSignIn,undefined,'専用サインインボタンなし');
@@ -79,6 +91,10 @@ function setup(options={}) {
   assert.equal(live.connections[0],config,'configファイルの設定をそのまま接続に使用');
   assert.equal(live.state.storageReads,0,'ブラウザ個別設定による上書きなし');
   assert.match(live.ids.masterUser.textContent,/Alice/);
+  assert.match(live.ids.systemLogEntries.textContent,/SharePointに接続しました。宛先 2件・業者 0件/);
+  const liveLog=live.ids.systemLogEntries.textContent;
+  live.ids.btnSystemLog.onclick();live.ids.btnSystemLog.onclick();
+  assert.deepEqual(live.state.connectModes,[false],'ログの開閉で再接続しない');
   live.use('2');assert(live.buttons('addressEditor').find(b=>b.textContent==='登録内容を更新').disabled);
   live.use('1');live.input('toText','修正後\n住所\n電話');
   live.click('addressEditor','登録内容を更新');assert.equal(live.saves.length,0,'確認前には書き込まない');
@@ -89,12 +105,24 @@ function setup(options={}) {
   assert.equal(live.ids.toText.value,'競合時の入力');assert(live.buttons('addressEditor').find(b=>b.textContent==='登録内容を更新').disabled);
   live.ids.masterReload.onclick();await next();assert.equal(live.ids.toText.value,'競合時の入力');
   assert.deepEqual(live.state.connectModes,[false,true],'再読込の操作時は必要に応じて認証可能');
+  assert.equal(live.ids.systemLogEntries.textContent,liveLog,'保存・手動再接続では起動ログを変更しない');
   assert(live.buttons('addressEditor').find(b=>b.textContent==='登録内容を更新').disabled,'再読込だけでは古い版を新版にしない');
   live.use('1');live.state.saveError=Object.assign(new Error('保存結果不明'),{uncertain:true});
   live.click('addressEditor','SharePointに新規登録');live.confirm();await next();
   assert(live.buttons('addressEditor').every(b=>b.disabled),'保存結果不明なら再保存を止める');
   const missing=setup({live:true,connectError:SP.httpError(404)});await next();assert.match(missing.ids.masterStatus.textContent,/テストCSV/);
+  assert.match(missing.ids.systemLogEntries.textContent,/サイトまたはリストが見つかりません/);
+  assert.match(missing.ids.systemLogEntries.textContent,/テストCSVへ切り替え/);
   const denied=setup({live:true,connectError:SP.httpError(403)});await next();assert.match(denied.ids.masterStatus.textContent,/権限/);assert.equal(denied.requests.length,0);
+  assert.match(denied.ids.systemLogEntries.textContent,/アクセス権限がありません/);
+  const csvFailed=setup({csvError:true});await next();assert.match(csvFailed.ids.systemLogEntries.textContent,/テストCSVを読み込めませんでした/);
+  const signin=setup({live:true,connectError:D.error('SIGNIN','認証応答の秘密')});await next();
+  assert.match(signin.ids.systemLogEntries.textContent,/認証が必要/);assert(!signin.ids.systemLogEntries.textContent.includes('秘密'));
+  const network=setup({live:true,connectError:D.error('NETWORK','内部エラー')});await next();assert.match(network.ids.systemLogEntries.textContent,/通信できないかタイムアウト/);
+  const waiting=setup({live:true,holdConnection:true});waiting.ids.btnSystemLog.onclick();
+  assert.match(waiting.ids.systemLogEntries.textContent,/確認を開始/);assert.equal(waiting.ids.systemLogEntries.children.length,1);
+  waiting.state.releaseConnection();await next();assert.match(waiting.ids.systemLogEntries.textContent,/接続しました/);
+  assert.deepEqual(waiting.state.connectModes,[false],'確認中にログを開いても接続処理は1回だけ');
   const empty=setup({live:true,empty:true});await next();assert.match(empty.ids.masterStatus.textContent,/接続済み/);assert.equal(empty.requests.length,0);
   assert(!empty.buttons('addressEditor').find(b=>b.textContent==='SharePointに新規登録').disabled);
   const preferences=setup({protocol:'https:'});await next();
@@ -128,5 +156,6 @@ function setup(options={}) {
   blocked.ids.addressMine.checked=true;blocked.ids.addressMine.onchange();
   assert.equal(blocked.ids.addressSelect.children.length,2,'Cookieが使えなくても現在の画面は操作可能');
   console.log('Cookie: 宛先/業者別の保存と復元・解除・テスト切替・保存後保持・パス/HTTPS・Cookie制限時: OK');
+  console.log('起動ログ: 開閉時の通信なし・日時・成功・認証/権限/通信失敗・CSV切替/失敗・起動時のみ記録: OK');
   console.log('マスタ画面: CSV切替・入力保持・登録者表示・本人/他人・保存確認・競合・保存結果不明・403/404/0件: OK');
 })().catch(e=>{console.error(e);process.exitCode=1;});
