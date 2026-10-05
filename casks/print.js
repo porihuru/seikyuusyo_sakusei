@@ -14,6 +14,13 @@
 (function () {
   "use strict";
 
+  function invoiceFileName(vendorText, dateText, editable) {
+    var vendor = String(vendorText || '').split(/\r\n|\r|\n/)[0]
+      .replace(/[<>:"\/\\|?*\x00-\x1f\x7f]/g, '_')
+      .replace(/^\s+|[\s.]+$/g, '').slice(0, 60).replace(/[\s.]+$/g, '') || '業者名未入力';
+    return '請求書_' + (editable ? '編集用_' : '') + vendor + '_' + String(dateText || '').replace(/[^0-9]/g, '') + '_' + new Date().getTime() + (editable ? '.json' : '.html');
+  }
+
   function rowCount(value, fallback) {
     if (value === undefined) return fallback;
     if (!/^\d+$/.test(String(value)) || Number(value) < 1 || Number(value) > 60) {
@@ -261,8 +268,6 @@
       }
     }
 
-    var versionText = window.VERSION_TEXT || "";
-
     var html = "";
     html += '<!doctype html><html lang="ja"><head>';
     html += '<meta charset="UTF-8">';
@@ -273,6 +278,7 @@
     html += "body { margin: 0; padding: 0; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 12px; }";
     html += ".page { page-break-after: always; }";
     html += ".page:last-child { page-break-after: auto; }";
+    html += "@media screen { body { background:#e5e7eb; } .page { width:210mm; min-height:297mm; padding:10mm 15mm 10mm 30mm; margin:16px auto; box-sizing:border-box; background:#fff; box-shadow:0 2px 8px #999; } }";
     html += ".invoice-table tr { page-break-inside: avoid; break-inside: avoid; }";
     html += ".saved-toolbar { padding:12px; margin-bottom:12px; background:#eee; color:#111; } @media print { .saved-toolbar { display:none; } }";
     html += ".page-inner { width: 100%; box-sizing: border-box; }";
@@ -314,7 +320,6 @@
     html += ".sum-row-label { text-align: right; font-weight: bold; }";
     html += ".sum-row-amount { text-align: right; font-weight: bold; }";
 
-    html += ".version { margin-top: 8px; font-size: 10px; text-align: right; color: #666; }";
     html += "</style>";
     html += "</head><body>";
     html += '<div class="saved-toolbar"><button type="button" onclick="window.print()">この請求書を印刷</button>　印刷時はA4縦で、最終ページの合計まで確認してください。</div>';
@@ -503,12 +508,6 @@
         html += "<p>明細がありません。</p>";
       }
 
-      // 最終ページのみ：バージョン表示
-      if (isLastPage && versionText) {
-        html +=
-          '<div class="version">' + escapeHtml(versionText) + "</div>";
-      }
-
       html += "</div></div>"; // .page-inner, .page
     }
 
@@ -534,16 +533,14 @@
     doc.close();
     win.focus();
 
-    if (win.print) {
-      win.print();
-    }
+    // まず帳票を確認し、プレビュー内の印刷ボタンから印刷画面へ進む。
   }
 
   function saveLedgerInvoice(allText) {
     var parsed = parseAllDataText(allText || ''), html;
     try { html = buildInvoiceHtml(parsed, readPrintSettings()); } catch (e) { alert(e.message); return; }
     if (!parsed.rows.length) { alert('保存する明細がありません。'); return; }
-    var name = '請求書_' + parsed.dateText.replace(/[^0-9]/g, '') + '_' + new Date().getTime() + '.html';
+    var name = invoiceFileName(parsed.vendorText, parsed.dateText, false);
     try {
       var blob = new Blob(['\uFEFF', html], { type: 'text/html;charset=utf-8' });
       if (window.navigator.msSaveOrOpenBlob) { window.navigator.msSaveOrOpenBlob(blob, name); return; }
@@ -556,6 +553,6 @@
   // グローバル公開
   window.printLedgerData = printLedgerData;
   window.saveLedgerInvoice = saveLedgerInvoice;
-  window.InvoicePrint = { buildHtml: buildInvoiceHtml, parse: parseAllDataText, readSettings: readPrintSettings };
+  window.InvoicePrint = { buildHtml: buildInvoiceHtml, parse: parseAllDataText, readSettings: readPrintSettings, fileName: invoiceFileName };
   initPrintSettings();
 })();

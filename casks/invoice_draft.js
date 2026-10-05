@@ -45,7 +45,7 @@
     try {
       var text = JSON.stringify(snapshot(), null, 2), blob = new Blob(['\uFEFF', text], { type: 'application/json;charset=utf-8' });
       if (blob.size > MAX_SIZE) throw new Error('編集用データが5MBを超えています。');
-      var name = '請求書_編集用_' + new Date().getTime() + '.json';
+      var name = root.InvoicePrint.fileName(el('vendorText').value, el('billDate').value, true);
       if (root.navigator.msSaveOrOpenBlob) root.navigator.msSaveOrOpenBlob(blob, name);
       else {
         var url = root.URL.createObjectURL(blob), link = document.createElement('a');

@@ -5,7 +5,7 @@ const fields = {billDate:{value:'2026-10-05'},toText:{value:'宛先\n住所'},ve
 const state={alerts:[],cookie:'',clicked:0,revoked:0};
 const document={getElementById:id=>fields[id]||null,body:{appendChild(){},removeChild(){}},createElement:()=>({click(){state.clicked++;state.filename=this.download;}})};
 Object.defineProperty(document,'cookie',{get:()=>state.cookie,set:v=>{state.cookie=v;}});
-const sandbox={document,Blob,Date,alert:m=>state.alerts.push(m),navigator:{},URL:{createObjectURL:b=>{state.blob=b;return 'blob:test';},revokeObjectURL:()=>state.revoked++},setTimeout:fn=>fn(),open:()=>({document:{open(){},write:h=>state.print=h,close(){}},focus(){},print(){}})};
+const sandbox={document,Blob,Date,alert:m=>state.alerts.push(m),navigator:{},URL:{createObjectURL:b=>{state.blob=b;return 'blob:test';},revokeObjectURL:()=>state.revoked++},setTimeout:fn=>fn(),open:()=>({document:{open(){},write:h=>state.print=h,close(){}},focus(){},print(){state.autoPrint=true;}})};
 sandbox.window=sandbox;
 const source=fs.readFileSync(require.resolve('../casks/print.js'),'utf8');
 vm.runInNewContext(source,sandbox);
@@ -26,9 +26,14 @@ function text(n){return 'No\t品名\t規格\t単位\t合計数量\t契約単価\
   }
   fields.printFirstRows.value='18';fields.printLaterRows.value='25';fields.printFirstRows.onchange();assert.match(state.cookie,/18,25/);
   sandbox.printLedgerData(text(42));sandbox.saveLedgerInvoice(text(42));
+  assert(!state.autoPrint,'プレビューは自動で印刷しない');
   const saved=(await state.blob.text()).replace(/^\uFEFF/,'');
+  assert(!saved.includes('class="version"'));
+  assert.match(sandbox.InvoicePrint.fileName('株式会社テスト\n住所','2026-10-05',true),/^請求書_編集用_株式会社テスト_20261005_/);
+  assert(!/[<>:"/\\|?*]/.test(sandbox.InvoicePrint.fileName('A/B:*?\\C','',false)));
+  assert.match(sandbox.InvoicePrint.fileName('','',false),/業者名未入力/);
   assert.equal(saved,state.print,'保存と印刷は同じ帳票');assert.equal((saved.match(/class="page"/g)||[]).length,2);
-  assert.match(state.filename,/^請求書_20261005_\d+\.html$/);assert.equal(state.revoked,1);
+  assert.match(state.filename,/^請求書_業者_20261005_\d+\.html$/);assert.equal(state.revoked,1);
   assert(!/<(?:script|link|img)[^>]*(?:src|href)=/i.test(saved),'外部ファイルなし');
   fields.toText.value='<script>alert(1)</script>';sandbox.saveLedgerInvoice(text(1));assert.match(await state.blob.text(),/&lt;script&gt;/);
   sandbox.navigator.msSaveOrOpenBlob=(b,n)=>{state.ieBlob=b;state.ieName=n;};sandbox.saveLedgerInvoice(text(1));assert(state.ieBlob);assert.match(state.ieName,/\.html$/);
