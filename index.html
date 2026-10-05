@@ -135,17 +135,26 @@
         <p class="small">「01 PDFを読み込む」から納入台帳PDFを選択してください。</p>
       </div>
       <div id="sumBox"></div>
+      <div class="bulk-toolbar" aria-label="印刷行数の設定">
+        <label for="printFirstRows">1ページ目の明細行数</label>
+        <input id="printFirstRows" type="number" min="1" max="60" step="1" value="15" style="width:80px" aria-describedby="printRowsHint">
+        <label for="printLaterRows">2ページ目以降の明細行数</label>
+        <input id="printLaterRows" type="number" min="1" max="60" step="1" value="25" style="width:80px" aria-describedby="printRowsHint">
+        <button id="btnResetPrintRows" type="button">標準に戻す（15／25）</button>
+        <span id="printRowsHint" class="small">各1～60品目。小計・合計は含みません。設定はこのブラウザに記憶します。行数を増やすと紙面からあふれる場合があるため、印刷プレビューで最終ページの合計まで確認してください。</span>
+      </div>
       <div class="output-bar">
         <p class="output-note">明細と合計を確認してから印刷してください。</p>
         <div class="output-actions">
           <button id="btnCopyAll" type="button">全データコピー</button>
           <button id="btnPrintText" type="button">テキスト印刷</button>
+          <button id="btnSaveInvoice" type="button">請求書を保存（HTML）</button>
           <button id="btnPrint" type="button" class="primary-button">請求書を印刷</button>
         </div>
       </div>
       <span id="copyMsg" class="small" role="status" aria-live="polite"></span>
     </section>
-    <p class="page-footer">請求明細と今回だけの編集内容は保存されません。宛先・業者マスタは登録・更新した場合にSharePointへ保存されます。</p>
+    <p class="page-footer">請求書は「請求書を保存（HTML）」でPCに保存できます。保存したファイルはブラウザで開いて再印刷できます（アプリへの再読込・再編集用ではありません）。自動保存はしません。宛先・業者マスタは登録・更新した場合にSharePointへ保存されます。</p>
   </main>
 
   <script src="vendor/pdfjs/pdf.js"></script>
@@ -872,6 +881,11 @@ function copyTextToClipboard(text, label) {
     } else {
       alert('print.js が読み込まれていません。');
     }
+  };
+
+  document.getElementById('btnSaveInvoice').onclick = function () {
+    if (!validateInvoice()) return;
+    window.saveLedgerInvoice(buildAllDataText());
   };
 
 

@@ -8,16 +8,37 @@
 //   上段＝品名、下段＝規格 の 2 行構成で表示する。
 // ・印刷ヘッダー（請求書タイトル／日付／宛先／業者名＋請求額）は
 //   1ページ目のみに表示。
-// ・15品目以下：1ページのみ、ページ小計なし、フッター（合計・消費税額８％・総合計）は
-//   最終ページの明細表の中に 3 行として挿入。
-// ・15品目超：
-//   1ページ目 …… 15 行＋ページ小計行
-//   2ページ目以降 …… 25 行＋ページ小計行
-//   最終ページ …… ページ小計行 ＋ フッター3行（すべて表の中）
-//   （ページ小計は従来どおり残す）
+// ・行数は画面で設定（標準：初頁15、続頁25）。複数ページでは各ページに小計。
+// ・最終ページに合計・消費税・総合計。保存HTMLにも設定と編集結果を反映。
 
 (function () {
   "use strict";
+
+  function rowCount(value, fallback) {
+    if (value === undefined) return fallback;
+    if (!/^\d+$/.test(String(value)) || Number(value) < 1 || Number(value) > 60) {
+      throw new Error('明細行数は1～60の整数で入力してください。');
+    }
+    return Number(value);
+  }
+  function readPrintSettings() {
+    var first = document.getElementById('printFirstRows');
+    var later = document.getElementById('printLaterRows');
+    var settings = { first: rowCount(first ? first.value : undefined, 15), later: rowCount(later ? later.value : undefined, 25) };
+    try { document.cookie = 'invoicePrintRows=' + settings.first + ',' + settings.later + '; max-age=31536000; path=/; SameSite=Lax'; } catch (_) {}
+    return settings;
+  }
+  function initPrintSettings() {
+    var first = document.getElementById('printFirstRows'), later = document.getElementById('printLaterRows');
+    if (!first || !later) return;
+    try {
+      var match = document.cookie.match(/(?:^|;\s*)invoicePrintRows=(\d+),(\d+)(?:;|$)/);
+      if (match) { var a = rowCount(match[1], 15), b = rowCount(match[2], 25); first.value = a; later.value = b; }
+    } catch (_) {}
+    first.onchange = later.onchange = function () { try { readPrintSettings(); } catch (e) { alert(e.message); } };
+    var reset = document.getElementById('btnResetPrintRows');
+    if (reset) reset.onclick = function () { first.value = 15; later.value = 25; readPrintSettings(); };
+  }
 
   // -------------------- ユーティリティ --------------------
 
@@ -204,22 +225,24 @@
 
   // -------------------- 請求書 HTML 構築 --------------------
 
-  function buildInvoiceHtml(data) {
+  function buildInvoiceHtml(data, settings) {
+    settings = settings || {};
+    var firstRows = rowCount(settings.first, 15), laterRows = rowCount(settings.later, 25);
     var rows = data.rows || [];
     var totalRows = rows.length;
 
     // ページ分割
     var pages = [];
-    if (totalRows <= 15) {
-      // 15品目以下：1ページのみ・ページ小計なし
+    if (totalRows <= firstRows) {
+      // 1ページのみの場合はページ小計なし
       pages.push(rows.slice(0));
     } else {
-      // 1ページ目は 15行
-      pages.push(rows.slice(0, 15));
-      var remain = rows.slice(15);
+      // ページごとの指定品目数で分割
+      pages.push(rows.slice(0, firstRows));
+      var remain = rows.slice(firstRows);
       while (remain.length > 0) {
-        pages.push(remain.slice(0, 25));
-        remain = remain.slice(25);
+        pages.push(remain.slice(0, laterRows));
+        remain = remain.slice(laterRows);
       }
     }
     var pageCount = pages.length || 1;
@@ -250,6 +273,8 @@
     html += "body { margin: 0; padding: 0; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 12px; }";
     html += ".page { page-break-after: always; }";
     html += ".page:last-child { page-break-after: auto; }";
+    html += ".invoice-table tr { page-break-inside: avoid; break-inside: avoid; }";
+    html += ".saved-toolbar { padding:12px; margin-bottom:12px; background:#eee; color:#111; } @media print { .saved-toolbar { display:none; } }";
     html += ".page-inner { width: 100%; box-sizing: border-box; }";
 
     html += ".invoice-header { position: relative; margin-bottom: 8px; }";
@@ -292,6 +317,7 @@
     html += ".version { margin-top: 8px; font-size: 10px; text-align: right; color: #666; }";
     html += "</style>";
     html += "</head><body>";
+    html += '<div class="saved-toolbar"><button type="button" onclick="window.print()">この請求書を印刷</button>　印刷時はA4縦で、最終ページの合計まで確認してください。</div>';
 
     var p, i;
 
@@ -419,9 +445,9 @@
         }
 
         // ページ小計行
-        // 15品目以下（1ページのみ）の場合は「小計なし」指定なので追加しない
+        // 1ページのみの場合は小計を追加しない
         var needPageSubtotal =
-          (totalRows > 15); // 仕様：15品目超の場合のみページ小計あり
+          (pageCount > 1);
         if (needPageSubtotal) {
           html += "<tr>";
           // No〜契約単価 までを結合
@@ -494,6 +520,8 @@
 
   function printLedgerData(allText) {
     var parsed = parseAllDataText(allText || "");
+    var html;
+    try { html = buildInvoiceHtml(parsed, readPrintSettings()); } catch (e) { alert(e.message); return; }
 
     var win = window.open("", "_blank");
     if (!win) {
@@ -502,7 +530,7 @@
     }
     var doc = win.document;
     doc.open();
-    doc.write(buildInvoiceHtml(parsed));
+    doc.write(html);
     doc.close();
     win.focus();
 
@@ -511,6 +539,23 @@
     }
   }
 
+  function saveLedgerInvoice(allText) {
+    var parsed = parseAllDataText(allText || ''), html;
+    try { html = buildInvoiceHtml(parsed, readPrintSettings()); } catch (e) { alert(e.message); return; }
+    if (!parsed.rows.length) { alert('保存する明細がありません。'); return; }
+    var name = '請求書_' + parsed.dateText.replace(/[^0-9]/g, '') + '_' + new Date().getTime() + '.html';
+    try {
+      var blob = new Blob(['\uFEFF', html], { type: 'text/html;charset=utf-8' });
+      if (window.navigator.msSaveOrOpenBlob) { window.navigator.msSaveOrOpenBlob(blob, name); return; }
+      var url = window.URL.createObjectURL(blob), link = document.createElement('a');
+      link.href = url; link.download = name; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+      window.setTimeout(function () { window.URL.revokeObjectURL(url); }, 60000);
+    } catch (_) { alert('ファイルを保存できませんでした。ブラウザのダウンロード設定を確認してください。'); }
+  }
+
   // グローバル公開
   window.printLedgerData = printLedgerData;
+  window.saveLedgerInvoice = saveLedgerInvoice;
+  window.InvoicePrint = { buildHtml: buildInvoiceHtml, parse: parseAllDataText, readSettings: readPrintSettings };
+  initPrintSettings();
 })();
