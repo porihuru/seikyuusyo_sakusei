@@ -148,13 +148,16 @@
         <div class="output-actions">
           <button id="btnCopyAll" type="button">全データコピー</button>
           <button id="btnPrintText" type="button">テキスト印刷</button>
-          <button id="btnSaveInvoice" type="button">請求書を保存（HTML）</button>
+          <button id="btnSaveDraft" type="button">編集用データを保存</button>
+          <button id="btnLoadDraft" type="button">保存データを開く</button>
+          <input id="invoiceDraftInput" type="file" accept=".json,application/json" hidden>
+          <button id="btnSaveInvoice" type="button">印刷用HTMLを保存</button>
           <button id="btnPrint" type="button" class="primary-button">請求書を印刷</button>
         </div>
       </div>
       <span id="copyMsg" class="small" role="status" aria-live="polite"></span>
     </section>
-    <p class="page-footer">請求書は「請求書を保存（HTML）」でPCに保存できます。保存したファイルはブラウザで開いて再印刷できます（アプリへの再読込・再編集用ではありません）。自動保存はしません。宛先・業者マスタは登録・更新した場合にSharePointへ保存されます。</p>
+    <p class="page-footer">「編集用データを保存」でPCに保存し、「保存データを開く」で再編集できます。印刷用HTMLは閲覧・再印刷用です。自動保存はしません。保存ファイルには宛先・業者情報を含むため、取扱いに注意してください。宛先・業者マスタは明示的に登録・更新した場合だけSharePointへ保存されます。</p>
   </main>
 
   <script src="vendor/pdfjs/pdf.js"></script>
@@ -920,5 +923,6 @@ function copyTextToClipboard(text, label) {
 <script src="casks/sharepoint_intranet.js"></script>
 <script src="casks/sharepoint_client.js"></script>
 <script src="casks/master_ui.js"></script>
+<script src="casks/invoice_draft.js"></script>
 </body>
 </html>
