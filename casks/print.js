@@ -283,8 +283,8 @@
     html += ".saved-toolbar { padding:14px 24px; background:#202a36; color:#fff; font-size:12px; } .saved-toolbar button { padding:9px 20px; border:0; border-radius:4px; background:#fff; color:#202a36; font-weight:bold; cursor:pointer; } @media print { .saved-toolbar { display:none; } body { color:#111; } }";
     html += ".page-inner { width: 100%; box-sizing: border-box; }";
 
-    html += ".invoice-header { position:relative; border-top:3px solid #283442; border-bottom:1px solid #89929b; padding:8px 0; margin-bottom:6px; }";
-    html += ".invoice-title { font-size:23px; font-weight:bold; letter-spacing:.28em; padding-left:.28em; text-align:center; }";
+    html += ".invoice-header { position:relative; border-top:4px solid #283442; border-bottom:1px solid #89929b; padding:8px 0 8px 12px; margin-bottom:6px; }";
+    html += ".invoice-title { font-size:23px; font-weight:bold; letter-spacing:.32em; text-align:left; }";
     html += ".page-no { position:absolute; right:0; top:14px; font-size:10px; color:#525d69; font-variant-numeric:tabular-nums; }";
 
     html += ".date-line { text-align:right; font-size:11px; margin:3px 0; color:#424b54; }";
@@ -297,12 +297,12 @@
     html += ".box.atena .box-body { text-align: left; }";
 
     html += ".flex-row { display:flex; align-items:stretch; margin:8px 0 4px; }";
-    html += ".amount-box { width:42%; border-top:1px solid #89929b; border-bottom:2px solid #283442; padding:7px 8px; }";
+    html += ".amount-box { width:42%; border:1px solid #89929b; border-left:4px solid #283442; border-bottom:2px solid #283442; background:#f4f5f7; padding:7px 8px; }";
     html += ".amount-box .box-body { text-align:right; font-size:24px; font-weight:bold; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }";
     html += ".vendor-box { flex:1; margin-left:14px; padding-right:0; }";
     html += ".vendor-box .box-body { text-align: right; }";
 
-    html += ".section-title { margin-top:9px; margin-bottom:5px; font-size:11px; letter-spacing:.12em; font-weight:bold; }";
+    html += ".section-title { margin-top:9px; margin-bottom:5px; border-left:3px solid #283442; padding-left:7px; font-size:11px; letter-spacing:.12em; font-weight:bold; }";
 
     html += ".invoice-table { width: 100%; border-collapse: collapse; margin-top: 2px; }";
     html += ".invoice-table th, .invoice-table td { border-bottom:1px solid #b4bbc2; padding:2px 4px; vertical-align:top; }";

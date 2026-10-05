@@ -31,6 +31,9 @@ function text(n){return 'No\t品名\t規格\t単位\t合計数量\t契約単価\
   assert(!saved.includes('class="version"'));
   assert.match(saved, /size:A4 portrait/);
   assert.match(saved, /ご請求金額（税込）/);
+  assert.match(saved, /\.invoice-title \{[^}]*text-align:left/);
+  assert.match(saved, /\.amount-box \{[^}]*border-left:4px/);
+  assert.match(fs.readFileSync(require.resolve('../index.html'),'utf8'), /casks\/print\.js\?v=20261006-02/);
   assert.equal((saved.match(/class="grand-total"/g)||[]).length,1);
   assert.match(sandbox.InvoicePrint.fileName('株式会社テスト\n住所','2026-10-05',true),/^請求書_編集用_株式会社テスト_20261005_/);
   assert(!/[<>:"/\\|?*]/.test(sandbox.InvoicePrint.fileName('A/B:*?\\C','',false)));
