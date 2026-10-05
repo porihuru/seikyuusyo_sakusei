@@ -274,51 +274,54 @@
     html += "<title>請求書プレビュー</title>";
     html += "<style>";
     // 左余白 3cm = 30mm
-    html += "@page { margin: 10mm 15mm 10mm 30mm; }";
-    html += "body { margin: 0; padding: 0; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 12px; }";
+    html += "@page { size:A4 portrait; margin: 10mm 15mm 10mm 30mm; }";
+    html += "body { margin:0; padding:0; color:#20252b; font-family:'Yu Gothic','Meiryo',system-ui,sans-serif; font-size:12px; line-height:1.35; }";
     html += ".page { page-break-after: always; }";
     html += ".page:last-child { page-break-after: auto; }";
     html += "@media screen { body { background:#e5e7eb; } .page { width:210mm; min-height:297mm; padding:10mm 15mm 10mm 30mm; margin:16px auto; box-sizing:border-box; background:#fff; box-shadow:0 2px 8px #999; } }";
     html += ".invoice-table tr { page-break-inside: avoid; break-inside: avoid; }";
-    html += ".saved-toolbar { padding:12px; margin-bottom:12px; background:#eee; color:#111; } @media print { .saved-toolbar { display:none; } }";
+    html += ".saved-toolbar { padding:14px 24px; background:#202a36; color:#fff; font-size:12px; } .saved-toolbar button { padding:9px 20px; border:0; border-radius:4px; background:#fff; color:#202a36; font-weight:bold; cursor:pointer; } @media print { .saved-toolbar { display:none; } body { color:#111; } }";
     html += ".page-inner { width: 100%; box-sizing: border-box; }";
 
-    html += ".invoice-header { position: relative; margin-bottom: 8px; }";
-    html += ".invoice-title { font-size: 20px; font-weight: bold; text-align: center; }";
-    html += ".page-no { position: absolute; right: 0; top: 0; font-size: 11px; }";
+    html += ".invoice-header { position:relative; border-top:3px solid #283442; border-bottom:1px solid #89929b; padding:8px 0; margin-bottom:6px; }";
+    html += ".invoice-title { font-size:23px; font-weight:bold; letter-spacing:.28em; padding-left:.28em; text-align:center; }";
+    html += ".page-no { position:absolute; right:0; top:14px; font-size:10px; color:#525d69; font-variant-numeric:tabular-nums; }";
 
-    html += ".date-line { text-align: right; margin: 4px 0 2px; }";
-    html += ".message-line { margin: 2px 0 6px; }";
+    html += ".date-line { text-align:right; font-size:11px; margin:3px 0; color:#424b54; }";
+    html += ".message-line { margin:2px 0 6px; font-size:11px; }";
 
-    html += ".box { border: 1px solid #000; padding: 6px 8px; box-sizing: border-box; }";
-    html += ".box-label { font-size: 11px; margin-bottom: 2px; }";
-    html += ".box-body { white-space: pre-line; }";
+    html += ".box { padding:5px 8px; box-sizing:border-box; min-width:0; }";
+    html += ".box-label { font-size:10px; letter-spacing:.12em; color:#525d69; margin-bottom:3px; }";
+    html += ".box-body { white-space:pre-line; overflow-wrap:break-word; word-wrap:break-word; }";
+    html += ".box.atena { border-left:3px solid #283442; padding-left:10px; }";
     html += ".box.atena .box-body { text-align: left; }";
 
-    html += ".flex-row { display: flex; margin-bottom: 4px; }";
-    html += ".amount-box { width: 35%; }";
-    html += ".amount-box .box-body { text-align: right; font-size: 22px; font-weight: bold; }";
-    html += ".vendor-box { flex: 1; margin-left: 8px; }";
+    html += ".flex-row { display:flex; align-items:stretch; margin:8px 0 4px; }";
+    html += ".amount-box { width:42%; border-top:1px solid #89929b; border-bottom:2px solid #283442; padding:7px 8px; }";
+    html += ".amount-box .box-body { text-align:right; font-size:24px; font-weight:bold; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }";
+    html += ".vendor-box { flex:1; margin-left:14px; padding-right:0; }";
     html += ".vendor-box .box-body { text-align: right; }";
 
-    html += ".section-title { margin-top: 8px; margin-bottom: 4px; font-weight: bold; }";
+    html += ".section-title { margin-top:9px; margin-bottom:5px; font-size:11px; letter-spacing:.12em; font-weight:bold; }";
 
     html += ".invoice-table { width: 100%; border-collapse: collapse; margin-top: 2px; }";
-    html += ".invoice-table th, .invoice-table td { border: 1px solid #000; padding: 2px 4px; vertical-align: top; }";
-    html += ".invoice-table th { background: #f0f0f0; text-align: center; }";
-    html += ".col-no { width: 10mm; text-align: center; }";
+    html += ".invoice-table th, .invoice-table td { border-bottom:1px solid #b4bbc2; padding:2px 4px; vertical-align:top; }";
+    html += ".invoice-table th { background:#eef0f2; color:#20252b; border-top:2px solid #283442; border-bottom:1px solid #283442; text-align:center; font-size:10px; padding:4px 3px; }";
+    html += ".invoice-table td + td { border-left:1px solid #e0e3e6; } .invoice-table td { font-variant-numeric:tabular-nums; }";
+    html += ".col-no { width:9mm; text-align:center; color:#525d69; font-size:11px; }";
     html += ".col-name { width: auto; }";
     html += ".col-unit { width: 10mm; text-align: center; }";
     html += ".col-qty { width: 18mm; text-align: right; }";
     html += ".col-price { width: 22mm; text-align: right; }";
     html += ".col-amount { width: 24mm; text-align: right; }";
-    html += ".col-note { width: 14mm; }";
+    html += ".col-note { width:10mm; color:#525d69; }";
 
-    html += ".item-name { font-weight: normal; }";
-    html += ".item-spec { font-size: 11px; color: #555; }";
+    html += ".item-name { font-weight:500; overflow-wrap:break-word; word-wrap:break-word; }";
+    html += ".item-spec { font-size:11px; color:#4b5560; overflow-wrap:break-word; word-wrap:break-word; }";
 
     html += ".sum-row-label { text-align: right; font-weight: bold; }";
     html += ".sum-row-amount { text-align: right; font-weight: bold; }";
+    html += ".grand-total td { border-top:2px solid #283442; border-bottom:2px solid #283442; padding-top:5px; padding-bottom:5px; font-size:13px; }";
 
     html += "</style>";
     html += "</head><body>";
@@ -368,7 +371,7 @@
         html += '<div class="flex-row">';
         // 左：請求額
         html += '<div class="box amount-box">';
-        html += '<div class="box-label">請求額</div>';
+        html += '<div class="box-label">ご請求金額（税込）</div>';
         html +=
           '<div class="box-body">' +
           escapeHtml(invoiceLine || "") +
@@ -492,7 +495,7 @@
           html += "</tr>";
 
           // 総合計（.00付き）
-          html += "<tr>";
+          html += '<tr class="grand-total">';
           html +=
             '<td class="sum-row-label" colspan="5">総合計</td>';
           html +=
