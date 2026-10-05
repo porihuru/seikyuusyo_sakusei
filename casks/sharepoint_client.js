@@ -160,6 +160,7 @@
     return msalLoading;
   }
   function createClient(config) {
+    if (config.mode === 'intranet') return root.InvoiceSharePointIntranet.createClient(config);
     var app, initialization, account, user, store;
     function connect(interactive) {
       try { validateConfig(config); } catch (e) { return Promise.reject(e); }

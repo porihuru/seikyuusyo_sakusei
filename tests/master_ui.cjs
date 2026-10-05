@@ -40,7 +40,7 @@ function setup(options={}) {
       const pair=value.split(';')[0], split=pair.indexOf('=');cookieJar[pair.slice(0,split)]=pair.slice(split+1);
     }
   });
-  const context={document,Promise,Date,URL,console,InvoiceMasterData:D,INVOICE_SHAREPOINT_CONFIG:options.live?config:{},
+  const context={document,Promise,Date,URL,console,InvoiceMasterData:D,INVOICE_SHAREPOINT_CONFIG:options.config || (options.live?config:{}),
     location:{pathname:'/invoice/index.html',protocol:options.protocol || 'http:'},
     // 旧版のブラウザ個別設定が残っていても、configファイル以外を参照しないことを検証する。
     localStorage:{getItem:()=>{state.storageReads++;return JSON.stringify({...config,siteUrl:'https://old.sharepoint.com/sites/old'});},setItem(){},removeItem(){}},confirm:()=>true,
@@ -64,6 +64,9 @@ function setup(options={}) {
   return {ids,requests,saves,connections,state,context,click,input,use,confirm,buttons,cookieJar,cookieWrites};
 }
 (async()=>{
+  const intra=setup({config:{mode:'intranet',siteUrl:'/sites/invoices',addressList:'宛先',vendorList:'業者',adminUserIds:['alice']}});await next();
+  assert.match(intra.ids.masterStatus.textContent,/接続済み/,'tenantId/clientIdなしでイントラ接続');
+  intra.use('2');assert(!intra.buttons('addressEditor').find(b=>b.textContent==='登録内容を更新').disabled,'イントラ管理者IDで更新ボタン');
   const t=setup();await next();
   assert.match(t.ids.masterStatus.textContent,/テストCSV/);assert.equal(t.requests.length,2);
   assert.equal(t.state.storageReads,0,'config未設定時も過去の個別設定を読み込まない');

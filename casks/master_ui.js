@@ -79,7 +79,7 @@
     byId(open ? 'btnCloseSystemLog' : 'btnSystemLog').focus();
   }
   function person(p) { return (p.name || '不明') + (p.email ? '（' + p.email + '）' : p.id ? '［ID: ' + p.id + '］' : ''); }
-  function signature() { return [config.tenantId, config.clientId, config.siteUrl, config.addressList, config.vendorList].join('|'); }
+  function signature() { return [config.mode, config.tenantId, config.clientId, config.siteUrl, config.addressList, config.vendorList].join('|'); }
   function stamp(records) {
     kinds.forEach(function (kind) { records[kind].forEach(function (r) { r.connection = signature(); }); });
     return records;
@@ -94,12 +94,12 @@
       v.use.disabled = value || !candidate(kind);
       v.fresh.disabled = value;
       v.create.disabled = value || mode !== 'sharepoint' || saveUncertain || v.bound && v.bound.source === 'test';
-      v.update.disabled = value || mode !== 'sharepoint' || saveUncertain || !D.canEdit(v.bound, user, config.adminObjectIds) || !v.bound.etag || v.bound.connection !== signature();
+      v.update.disabled = value || mode !== 'sharepoint' || saveUncertain || !D.canEdit(v.bound, user, (config.mode === 'intranet' ? config.adminUserIds : config.adminObjectIds)) || !v.bound.etag || v.bound.connection !== signature();
       v.title.disabled = value; v.match.disabled = value; v.text.disabled = value;
       v.saveHint.textContent = mode !== 'sharepoint' ? '登録・更新はSharePoint接続後に利用できます。テストCSVは読み取り専用です。' :
         saveUncertain ? '保存結果の確認が必要です。一覧を再読込してください。' :
         v.bound && v.bound.source === 'test' ? 'テストCSVの内容は登録できません。「新しい情報を入力」から本番情報を入力してください。' :
-        v.bound && !D.canEdit(v.bound, user, config.adminObjectIds) ? 'この情報を更新できるのは登録者または管理者です。新規登録は利用できます。' :
+        v.bound && !D.canEdit(v.bound, user, (config.mode === 'intranet' ? config.adminUserIds : config.adminObjectIds)) ? 'この情報を更新できるのは登録者または管理者です。新規登録は利用できます。' :
         '入力欄の編集だけでは共有情報は変わりません。保存前に内容を確認できます。';
     });
     if (pending) { pending.confirm.disabled = value; pending.cancel.disabled = value; }
@@ -163,7 +163,7 @@
   function review(kind, update) {
     var v = views[kind], fields, existing = update ? v.bound : null;
     if (busy || mode !== 'sharepoint' || !user || saveUncertain || v.bound && v.bound.source === 'test') return;
-    if (update && (!D.canEdit(existing, user, config.adminObjectIds) || existing.connection !== signature())) return;
+    if (update && (!D.canEdit(existing, user, (config.mode === 'intranet' ? config.adminUserIds : config.adminObjectIds)) || existing.connection !== signature())) return;
     try { fields = D.fields(kind, v.title.value, v.text.value, v.match.value, existing ? existing.active : true); }
     catch (e) { v.message.textContent = e.message; return; }
     closeReview();
@@ -265,7 +265,7 @@
       if (startup) startupLog('error', 'テストCSVを読み込めませんでした。dataフォルダーの配置と通信環境を確認してください。');
     });
   }
-  function configured() { return !!(config.tenantId && config.clientId && config.siteUrl); }
+  function configured() { return !!(config.siteUrl && (config.mode === 'intranet' || config.tenantId && config.clientId)); }
   function connect(interactive, startup) {
     if (busy) return;
     if (startup) startupLog('info', '起動時のSharePoint接続確認を開始しました。');

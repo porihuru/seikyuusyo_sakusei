@@ -23,9 +23,9 @@
 
 接続先が未設定の場合、同梱のテストCSVを表示します。架空の宛先・業者を選択して請求書に反映でき、登録者・登録日時・最終更新者を確認できます。テスト表示中はSharePointへの登録・更新はできません。
 
-SharePoint Onlineのサイトとリスト、Microsoft Entraのアプリを設定すると、Microsoft 365の本人アカウントで登録・更新できます。検索、本人の登録情報への絞り込み、保存前の内容確認、ETagによる同時編集の検出に対応します。入力欄の編集だけでは共有マスタを更新しません。
+既定はイントラのSharePoint REST接続です。同じ接続元にアプリを配置し、サイトURLと2つのリスト名を設定すると、SharePointにログイン中の本人として登録・更新できます。tenantId・clientIdは不要です。検索、本人の登録情報への絞り込み、保存前の内容確認、ETagによる同時編集の検出に対応します。入力欄の編集だけでは共有マスタを更新しません。
 
-専用のサインインボタンは設けず、認証が必要な場合は「共有リストを再読込」の操作から本人確認を行います。起動時と認証済みの再読込では認証画面を自動表示しません。
+イントラでは対象のSharePointサイトにログインしてから「共有リストを再読込」を押します。起動時と認証済みの再読込では認証画面を自動表示しません。
 
 「自分が登録した情報だけ」のチェック状態は、宛先・業者それぞれCookieに365日間保存し、次回表示時に復元します。保存するのはチェックの有無だけです。テストCSV表示中にも設定でき、本人による絞り込みはSharePoint接続後に適用します。
 
@@ -57,7 +57,7 @@ SharePoint Onlineのサイトとリスト、Microsoft Entraのアプリを設定
 ## 社内Webサーバーへの配置
 
 `index.html`、`auth.html`、`SHAREPOINT_SETUP.md`、`casks/`、`data/`、`vendor/` を同じ構成で配置してください。HTML・CSS・JavaScriptの静的配信のみで動きます。画面のスタイルは `casks/app.css` にまとめています。
-PDFはブラウザ内で処理し、サーバーへアップロードしません。PDF処理とテストCSV表示にはインターネット接続は不要です。SharePoint連携時にはMicrosoftの認証・APIへの接続が必要です。ライブラリはローカル同梱しておりCDNは使用しません。
+PDFはブラウザ内で処理し、サーバーへアップロードしません。PDF処理とテストCSV表示にはインターネット接続は不要です。イントラ接続では同じ接続元のSharePoint RESTに通信し、外部認証・Graphは使用しません。アプリはSharePointと同じプロトコル・ホスト・ポートで配信してください。PC上のHTMLの直接起動や別サーバー配置からの接続には対応しません。ライブラリはローカル同梱しておりCDNは使用しません。
 `.csv` はUTF-8の `text/csv`、`.md` はUTF-8の `text/plain` で配信してください。
 `.bcmap` は `application/octet-stream` として配信できるようにしてください（IISなどではMIME設定が必要な場合があります）。
 開発用の `.vscode/`、検証用の `tests/`、作業ファイルの `tmp/` は配布不要です。
@@ -77,7 +77,7 @@ Node.jsがあるPCでVS CodeのF5を押すと、ローカルサーバーを起�
 
 ## ブラウザ対応とライブラリ
 
-従来のPDF処理はEdge 95／IE11を対象とし、アプリのJavaScriptはES5構文、日付はテキスト入力を使用しています。SharePoint連携はHTTPS（開発時はlocalhost）と現行Edge／Chromeを対象にします。IE11ではSharePoint認証は利用できません。
+従来のPDF処理はEdge 95／IE11を対象とし、アプリのJavaScriptはES5構文、日付はテキスト入力を使用しています。イントラ連携はEdge 95以降を想定します（Promise・URL APIが必要）。IE11のSharePoint連携は保証しません。OnlineモードはHTTPSと現行Edge／Chromeが必要です。
 PDF.js 2.6.347のES5版と日本語CMapをローカル同梱しています。ライセンスは `vendor/pdfjs/LICENSE` です。
 文字抽出だけに使用し、`isEvalSupported: false` を指定しています。
 参考: https://github.com/mozilla/pdfjs-dist/tree/v2.6.347
@@ -86,7 +86,7 @@ PDF.js 2.6.347のES5版と日本語CMapをローカル同梱しています。�
 追加の4組についても、規格反映・選択順・通知解除・手入力保持・コピー・請求書表示・読込失敗・キャンセル・外部通信なしを検証済みです。
 Edge 95／IE11の実機での表示・印刷確認は未実施です。
 
-SharePoint認証にはMSAL Browser 4.29.0を同梱しています（`vendor/msal/LICENSE`）。実テナントの接続・権限・本人登録は、管理者による設定後に [受入確認](SHAREPOINT_SETUP.md#本番接続後の受入確認) が必要です。
+Onlineモードの認証だけにMSAL Browser 4.29.0を同梱しています（`vendor/msal/LICENSE`）。実テナントの接続・権限・本人登録は、管理者による設定後に [受入確認](SHAREPOINT_SETUP.md#本番接続後の受入確認) が必要です。
 
 ## 検証
 
@@ -100,6 +100,8 @@ SharePoint認証にはMSAL Browser 4.29.0を同梱しています（`vendor/msal
 
 マスタのCSV・入力・登録者判定: `node tests/master_data.cjs`
 
-SharePointの模擬通信（登録・更新・ETag・権限・保存結果不明）: `node tests/sharepoint_client.cjs`
+イントラSharePointの模擬通信: `node tests/sharepoint_intranet.cjs`
+
+Online版の模擬通信（登録・更新・ETag・権限・保存結果不明）: `node tests/sharepoint_client.cjs`
 
 マスタ画面の状態遷移（テスト切替・入力保持・保存確認）: `node tests/master_ui.cjs`

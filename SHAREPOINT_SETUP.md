@@ -4,7 +4,7 @@
 
 接続設定が空の場合、`data/addresses.test.csv` と `data/vendors.test.csv` を表示します。CSVは架空のデータで、登録者も架空です。選択内容を請求書に反映できますが、SharePointへの登録・更新はできません。
 
-本番接続には、管理者による以下の設定が必要です。アプリはリストや権限を自動作成しません。SharePoint Onlineの通常のMicrosoft 365クラウド（`*.sharepoint.com`）を対象とします。
+本番接続には、管理者による以下の設定が必要です。アプリはリストや権限を自動作成しません。既定はイントラのSharePoint REST接続です。実際のサーバーのREST対応・認証・権限は配布先で確認してください。
 
 ## 1. リストを作成
 
@@ -43,64 +43,50 @@
 
 **アプリのボタン表示だけでは権限を保護できません。SharePoint側の設定が必須です。** リスト管理権限を持つ利用者はアイテムごとの制限を超えて操作できる場合があります。必要に応じてリストの権限継承を分け、管理者が既存の権限との重複を確認してください。
 
-管理者がアプリから他人の登録内容を更新する場合は、`casks/sharepoint-config.js` の `adminObjectIds` にその人のEntraオブジェクトIDを設定します。これは更新ボタンの表示設定で、SharePointの権限を付与するものではありません。
+管理者がアプリから他人の登録内容を更新する場合は、`casks/sharepoint-config.js` の `adminUserIds` にその人のSharePointユーザーID（例：`['12']`、`/_api/web/currentuser`のId）を設定します。これは更新ボタンの表示設定で、SharePointの権限を付与するものではありません。
 
-## 3. Entra IDにアプリを登録
+## 3. イントラ用の接続設定と配置
 
-1. Microsoft Entra管理センターで、この組織のみを対象とするアプリを登録します。
-2. 「認証」に **シングルページアプリケーション（SPA）** を追加します。
-3. リダイレクトURIには、配置先の`auth.html`の正確なURLを指定します。例：`https://invoice.example.jp/auth.html`。
-4. 開発時は`http://localhost:8080/auth.html`を追加し、アプリも`http://localhost:8080/index.html`から開きます。`127.0.0.1`など別ホストで開いた場合、対応するURIの登録が別途必要です。
-5. Microsoft Graphの**委任されたアクセス許可**に`User.Read`と`Sites.Selected`を追加し、管理者が同意します。
-6. ディレクトリ（テナント）IDとアプリケーション（クライアント）IDを控えます。
-
-クライアントシークレットは作成・配布しません。ブラウザはMSALの認可コード＋PKCEで、サインインした利用者本人としてアクセスします。
-
-### 対象サイトへのアプリのアクセスを許可する
-
-`Sites.Selected`は同意しただけではサイトへアクセスできません。管理者が対象サイトに、このアプリの`write`権限を明示的に付与します。権限設定は管理者の手順で行い、この請求書アプリ自身には権限付与用の権限を与えません。
-
-管理者が行うMicrosoft Graphリクエストの形式：
-
-```http
-POST https://graph.microsoft.com/v1.0/sites/{対象サイトID}/permissions
-Content-Type: application/json
-
-{
-  "roles": ["write"],
-  "grantedToIdentities": [{
-    "application": {
-      "id": "請求書アプリのクライアントID",
-      "displayName": "請求書作成ツール"
-    }
-  }]
-}
-```
-
-利用者自身のSharePoint権限も必要です。アプリのサイト許可と、利用者のリスト権限の両方でアクセスを制限します。広範な`Sites.ReadWrite.All`やアプリケーション権限は、この実装では使用しません。
-
-## 4. アプリの接続先を設定
-
-管理者が`casks/sharepoint-config.js`に接続情報を事前入力して配布します。このファイルが唯一の接続設定元です。利用者が画面で接続先を入力する操作はありません。
+既定は `mode: 'intranet'` です。Microsoft 365、Entra ID、tenantId、clientIdは不要です。
+SharePointのブラウザ認証（Windows認証やログイン済みCookie）を使います。ユーザー名・パスワードはコードに記載しません。
 
 ```javascript
 window.INVOICE_SHAREPOINT_CONFIG = {
-  tenantId: 'テナントのGUID',
-  clientId: 'アプリのGUID',
-  siteUrl: 'https://組織名.sharepoint.com/sites/サイト名',
+  mode: 'intranet',
+  siteUrl: '/sites/invoices',
   addressList: '請求書宛先マスタ',
   vendorList: '請求書業者マスタ',
-  adminObjectIds: []
+  adminUserIds: []
 };
 ```
 
-`siteUrl`はサイトのトップURLです。リストの画面URL（`Lists/.../AllItems.aspx`）は指定しません。リストは表示名またはGUIDを指定できます。宛先と業者は別リストにしてください。
+`siteUrl`はサイトのトップまでです。`/Lists/.../AllItems.aspx`や`/_layouts/...`は含めません。
+同じホスト内のパスを指定できるので、イントラのホスト名を公開コードへ記載する必要はありません。
+リスト名は表示名、またはGUIDを指定できます。
 
-接続設定を変更した場合は、ファイルを再配布して画面を再読込してください。以前の版で`localStorage`に保存した個別接続設定は読み込まず、configファイルの設定を使用します。認証状態は引き続きMSALが`sessionStorage`で管理し、利用者は本人のMicrosoft 365アカウントでサインインします。
+**アプリはSharePointと同じプロトコル・ホスト・ポートで配信してください。**
+対象サイト内の管理者が許可した配置場所に、フォルダー構成を維持して配布してください。
+ドキュメントライブラリからHTMLがダウンロードされる設定の場合は、管理者にスクリプトを実行できる配置方法を確認してください。
+PC上のHTMLを直接開く `file://`、localhost、別ホストのWebサーバーから対象SharePointへの接続は、この実装では対応しません。
+ブラウザの保護設定を解除する方法は使用しません。
+
+`casks/sharepoint-config.js`だけを設定元とし、変更後は再配布して画面を再読み込みします。
+ブラウザで対象サイトへログイン後、アプリを開いてください。
+`/_api/web/currentuser`で本人を取得し、`/_api/web/lists`でマスタを読み込みます。
+保存直前に`/_api/contextinfo`でフォームダイジェストを取得し、登録はPOST、更新はPOST＋MERGE＋If-Matchで行います。
+作成者・更新者・日時はSharePointの標準列を読み込み、アプリから設定しません。
+
+## 4. Online版を使う場合のみ
+
+既存のMicrosoft Graph/MSAL接続も残しています。Online版へ戻す場合は `mode: 'online'`、
+`tenantId`、`clientId`、`siteUrl`（`https://組織名.sharepoint.com/sites/サイト名`）、
+`addressList`、`vendorList`、`adminObjectIds`を設定します。
+EntraのSPAアプリ登録、配置先`auth.html`のリダイレクトURI、Graph委任権限`User.Read`と`Sites.Selected`の同意、対象サイトへのアプリのwrite許可が必要です。
+この設定はイントラ利用では行いません。
 
 ## 5. 利用方法
 
-1. 起動時に認証済みの接続を確認します。認証が必要と表示された場合は「共有リストを再読込」を押し、表示されるMicrosoftの画面で本人のアカウントを確認します。専用のサインインボタンはありません。認証済みの場合は認証画面を開かずに再読込します。
+1. 起動時にSharePoint接続を確認します。イントラでは別タブで対象サイトにログインしてから「共有リストを再読込」を押します。アプリ独自のサインイン画面はありません。
 2. 画面上部の利用者名と「SharePoint接続済み」を確認します。
 3. 宛先・業者を名称や登録者で検索します。「自分が登録した情報だけ」で絞り込めます。
 4. 候補を選んで、登録者・更新者・内容を確認し、「この宛先を使用」「この業者を使用」を押します。候補選択だけでは入力内容を変えません。
@@ -130,11 +116,11 @@ window.INVOICE_SHAREPOINT_CONFIG = {
 
 配布するのは`index.html`、`auth.html`、`SHAREPOINT_SETUP.md`、`casks/`、`data/`、`vendor/`です。`.csv`はUTF-8の`text/csv`、`.md`はUTF-8の`text/plain`で配信すると設定手順をブラウザで確認できます。
 
-PDF処理とテストCSVはローカル配信だけで動作します。SharePoint連携にはMicrosoftのログイン先、Microsoft Graph等への接続が必要です。PDFや請求明細はアップロードせず、保存ボタンで指定した宛先・業者情報だけを送信します。
+PDF処理とテストCSVはローカル配信だけで動作します。イントラ接続では同じ接続元のSharePoint RESTだけに通信し、Microsoftの外部認証先やGraphには接続しません。PDFや請求明細はアップロードせず、保存ボタンで指定した宛先・業者情報だけを送信します。
 
-SharePoint連携は現行Edge／ChromeとHTTPSを対象とします（ローカル開発はlocalhost可）。IE11ではテストCSVと従来の請求書機能だけを対象とし、SharePoint認証はサポートしません。IE11実機確認は未実施です。
+イントラ接続はEdge 95以降を想定し、ES5構文とXMLHttpRequestを使用しています。PromiseとURL APIが必要です。IE11のイントラ接続は保証しません。Edge 95／IE11実機および職場のSharePointへの接続確認は未実施です。
 
-認証ライブラリは`@azure/msal-browser` 4.29.0をローカル同梱しています。npm配布アーカイブのSHA-512を検証して導入し、MITライセンスは`vendor/msal/LICENSE`に保存しています。この版はポップアップ認証用の空の`auth.html`を使用します。MSALのメジャーバージョンを上げる際はリダイレクトページの要件も確認してください。
+Onlineモードだけで使用する認証ライブラリは`@azure/msal-browser` 4.29.0をローカル同梱しています。npm配布アーカイブのSHA-512を検証して導入し、MITライセンスは`vendor/msal/LICENSE`に保存しています。この版はポップアップ認証用の空の`auth.html`を使用します。MSALのメジャーバージョンを上げる際はリダイレクトページの要件も確認してください。
 
 ## 本番接続後の受入確認
 
@@ -145,9 +131,12 @@ SharePoint連携は現行Edge／ChromeとHTTPSを対象とします（ローカ�
 - 同じ項目を2画面で開き、片方を保存した後、古い画面の保存は競合になる。
 - 権限不足・未サインインが「見つからない」と誤表示されない。テスト切り替えでは請求書入力が消えない。
 
-実テナントの設定がない状態では、これらの本番受入確認は未実施です。通信を模擬したテストは`node tests/sharepoint_client.cjs`で実行できます。
+職場のイントラ環境に接続できないため、本番受入確認は未実施です。イントラの模擬通信テストは`node tests/sharepoint_intranet.cjs`、Online版は`node tests/sharepoint_client.cjs`で実行できます。
 
 ## Microsoft公式仕様
+
+- [SharePoint RESTの基本操作と認証用ダイジェスト](https://learn.microsoft.com/ja-jp/sharepoint/dev/sp-add-ins/complete-basic-operations-using-sharepoint-rest-endpoints)
+- [RESTでのリスト操作・MERGEとETag](https://learn.microsoft.com/ja-jp/sharepoint/dev/sp-add-ins/working-with-lists-and-list-items-with-rest)
 
 - [MSAL Browserの初期化](https://learn.microsoft.com/en-us/entra/msal/javascript/browser/initialization)
 - [サイトを限定するSelected権限](https://learn.microsoft.com/en-us/graph/permissions-selected-overview)
