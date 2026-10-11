@@ -9,7 +9,13 @@
             "isBackground": true,
             "problemMatcher": {
                 "owner": "local-server",
-                "pattern": { "regexp": "^ERROR (.*)$", "message": 1 },
+                "fileLocation": ["relative", "${workspaceFolder}"],
+                "pattern": {
+                    "regexp": "^ERROR (\\.vscode/server\\.cjs): (.*)$",
+                    "kind": "file",
+                    "file": 1,
+                    "message": 2
+                },
                 "background": {
                     "activeOnStart": true,
                     "beginsPattern": "^Starting local server",

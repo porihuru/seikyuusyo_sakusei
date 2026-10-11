@@ -57,18 +57,18 @@ http.createServer((req, res) => {
             if (response.headers['x-local-preview'] === 'seikyuusyo-sakusei') {
                 console.log('Local server ready: http://127.0.0.1:8080/index.html');
             } else {
-                console.error('ERROR Port 8080 is used by another server.');
+                console.error('ERROR .vscode/server.cjs: Port 8080 is used by another server.');
                 process.exitCode = 1;
             }
         });
         probe.setTimeout(3000, () => probe.destroy(new Error('Server check timed out')));
         probe.on('error', probeError => {
-            console.error('ERROR ' + probeError.message);
+            console.error('ERROR .vscode/server.cjs: ' + probeError.message);
             process.exitCode = 1;
         });
         return;
     }
-    console.error('ERROR ' + error.message);
+    console.error('ERROR .vscode/server.cjs: ' + error.message);
     process.exit(1);
 }).listen(8080, '127.0.0.1', () => {
     console.log('Local server ready: http://127.0.0.1:8080/index.html');

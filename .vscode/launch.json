@@ -2,12 +2,18 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Webサーバー経由でEdgeを開く",
-            "type": "msedge",
+            "name": "請求書アプリを起動",
+            "type": "node",
             "request": "launch",
-            "url": "http://127.0.0.1:8080/index.html",
-            "webRoot": "${workspaceFolder}",
-            "preLaunchTask": "ローカルWebサーバーを起動"
+            "program": "${workspaceFolder}/.vscode/server.cjs",
+            "cwd": "${workspaceFolder}",
+            "console": "internalConsole",
+            "outputCapture": "std",
+            "serverReadyAction": {
+                "pattern": "Local server ready: (http://127\\.0\\.0\\.1:8080/index\\.html)",
+                "uriFormat": "%s",
+                "action": "openExternally"
+            }
         }
     ]
 }
