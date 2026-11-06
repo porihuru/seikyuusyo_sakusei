@@ -9,6 +9,29 @@
     element.textContent = text;
     element.setAttribute('data-status', error ? 'error' : 'success');
   }
+  var logs = [], logText = document.getElementById('pdfErrorLog');
+  function report(element, kind, file, error, context) {
+    var msg = error && error.message || String(error), now = new Date();
+    var lines = ['日時: ' + now.toLocaleString(), '対象: ' + kind, 'ファイル: ' + (file ? file.name + ' (' + file.size + ' bytes)' : '未選択'),
+      '取込処理版: 20261106-log / PDF.js: ' + (global.pdfjsLib && global.pdfjsLib.version || '不明'),
+      '処理段階: ' + context.stage, 'ページ: ' + (context.page || '未確定') + ' / ' + (context.count || '不明'),
+      'エラー: ' + (error && error.name || 'Error') + ': ' + msg];
+    if (context.check) Object.keys(context.check).forEach(function (k) {
+      var v = context.check[k];
+      lines.push(k + ': ' + (v === '' || v == null ? '（未取得）' : typeof v === 'object' ? JSON.stringify(v) : String(v)).slice(0,1000));
+    });
+    logs.unshift(lines.join('\r\n')); logs.length = Math.min(logs.length, 10);
+    logText.value = logs.join('\r\n\r\n'); document.getElementById('pdfLogPanel').hidden = false;
+    message(element, '読み込みできません：' + msg + '　詳細は下のエラーログをご確認ください。', true);
+  }
+  document.getElementById('savePdfLog').onclick = function () {
+    var blob = new Blob(['\uFEFF', logText.value], { type: 'text/plain;charset=utf-8' });
+    var filename = 'PDF取込エラー_' + new Date().toISOString().replace(/[:.]/g, '-') + '.txt';
+    if (global.navigator.msSaveOrOpenBlob) return global.navigator.msSaveOrOpenBlob(blob, filename);
+    var url = global.URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    global.setTimeout(function () { global.URL.revokeObjectURL(url); }, 60000);
+  };
   function removeAutomaticSpecs() {
     global.currentRows.forEach(function (row) {
       if (row._noticeSpec !== undefined && !row._specManual && row.spec === row._noticeSpec) row.spec = '';
@@ -60,7 +83,7 @@
   document.getElementById('btnClearNotice').onclick = global.clearNoticePdf;
   if (!global.pdfjsLib) {
     input.disabled = true; noticeInput.disabled = true;
-    message(status, 'PDF読込ライブラリがありません。vendorフォルダーを含めて配置してください。', true);
+    report(status, '共通', null, new Error('PDF読込ライブラリがありません。vendorフォルダーを含めて配置してください。'), {stage:'初期化'});
     return;
   }
   global.pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdfjs/pdf.worker.js';
@@ -73,14 +96,15 @@
     var bulkSpecText = document.getElementById('bulkSpecText');
     bulkSpecText.value = bulkSpecText.defaultValue;
     if (notice) global.applyNoticeSpecifications();
-    ledgerReader.load(file, function (progress) { message(status, file.name + '：' + progress); }, function (pages) {
-      var parsed = global.parseLedgerPdfPages(pages);
+    ledgerReader.load(file, function (progress) { message(status, file.name + '：' + progress); }, function (pages, log) {
+      var parsed = global.parseLedgerPdfPages(pages, log);
+      log.stage = '台帳の画面反映'; log.page = null; log.check = null;
       global.renderTable(parsed.rows, parsed.summary);
       message(status, file.name + ' / ' + parsed.period + ' / ' + parsed.pageCount + 'ページ / ' + parsed.rows.length + '明細：原本との金額照合が完了しました。');
       global.applyNoticeSpecifications();
-    }, function (error) {
+    }, function (error, log) {
       global.renderTable([], null);
-      message(status, '読み込みできません：' + error, true);
+      report(status, '納入台帳', file, error, log);
     });
   };
   noticeInput.onchange = function () {
@@ -88,13 +112,14 @@
     var file = noticeInput.files[0];
     notice = null; noticeBusy = true; noticeFilename = file.name;
     removeAutomaticSpecs(); refreshSpecs(); details.textContent = '';
-    noticeReader.load(file, function (progress) { message(noticeStatus, file.name + '：' + progress); }, function (pages) {
-      notice = global.parseNoticePdfPages(pages);
+    noticeReader.load(file, function (progress) { message(noticeStatus, file.name + '：' + progress); }, function (pages, log) {
+      notice = global.parseNoticePdfPages(pages, log);
+      log.stage = '規格の反映'; log.page = null; log.check = null;
       noticeBusy = false;
       global.applyNoticeSpecifications();
-    }, function (error) {
+    }, function (error, log) {
       noticeBusy = false; notice = null;
-      message(noticeStatus, '読み込みできません：' + error, true);
+      report(noticeStatus, '契約済通知書', file, error, log);
     });
   };
 })(this);

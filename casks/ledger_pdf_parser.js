@@ -14,9 +14,12 @@
     items.sort(function (a, b) { return Math.abs(a.y - b.y) > 2 ? b.y - a.y : a.x - b.x; });
     return items.map(function (x) { return x.s; }).join('');
   }
-  function parsePages(pages) {
+  function parsePages(pages, log) {
+    log = log || {};
     var rows = [], summary = null, firstVendor = '', firstPeriod = '', seen = {};
     pages.forEach(function (page, pageIndex) {
+      log.page = pageIndex + 1;
+      log.check = { '用紙幅(pt)': page.width, '用紙高さ(pt)': page.height, '文字要素数': page.items.length };
       var where = (pageIndex + 1) + 'ページ目：';
       if (Math.abs(page.width / page.height - 842 / 595) > 0.03) {
         throw new Error(where + '対応する納入台帳の用紙サイズではありません。');
@@ -31,6 +34,7 @@
       var vendor = join(items.filter(function (x) { return x.x >= 490 && x.y > 477 && x.y < 485; }));
       var site = join(items.filter(function (x) { return x.x >= 105 && x.x < 440 && x.y > 477 && x.y < 485; }));
       var period = join(items.filter(function (x) { return x.y > 503 && x.y < 514; })).replace(/\s/g, '');
+      log.check = { '納地': site, '業者名': vendor, '対象月': period };
       if (!vendor || !site || !period) throw new Error(where + '業者名・納地・対象月を読み取れません。');
       if (pageIndex && (firstVendor !== site + vendor || firstPeriod !== period)) {
         throw new Error(where + '業者・納地・対象月の異なる台帳が含まれています。PDFを分けてください。');
@@ -42,8 +46,9 @@
       if (!codes.length) throw new Error(where + '明細を読み取れません。');
       codes.forEach(function (code) {
         var label = where + 'No ' + code.s + '：';
+        log.check = { '明細番号': code.s, '先行ページ': seen[code.s] };
         if (seen[code.s]) throw new Error(label + '明細番号が重複しています。');
-        seen[code.s] = true;
+        seen[code.s] = pageIndex + 1;
         var band = items.filter(function (x) { return Math.abs(x.y - code.y) < 8; });
         function cell(minX, maxX, upper) {
           return join(band.filter(function (x) {
@@ -54,6 +59,8 @@
         var unit = join(band.filter(function (x) { return x.x >= 142 && x.x < 152; }));
         var qty = cell(742, 782, true), price = cell(782, 821, true), amount = cell(742, 821, false);
         var q = number(qty), p = number(price), a = number(amount);
+        log.check = { '明細番号': code.s, '品名': name, '単位': unit, '数量': qty, '単価': price, '原本金額': amount,
+          '数量×単価': Math.round(q * p * 100) / 100, '対応単位': 'PC BG KG EA CA CN SH PR' };
         if (!name || !/^(PC|BG|KG|EA|CA|CN|SH|PR)$/.test(unit) || !isFinite(q) || !isFinite(p) || !isFinite(a)) {
           throw new Error(label + '品名・単位・数量・単価・金額を読み取れません。');
         }
@@ -61,12 +68,14 @@
           throw new Error(label + '数量×単価と原本金額が一致しません。');
         }
         var daily = band.filter(function (x) { return x.x >= 152 && x.x < 742; });
+        log.check['日別数量'] = daily.map(function (x) { return x.s; }).join(' / ');
         var dailySum = 0;
         daily.forEach(function (x) {
           var v = number(x.s);
           if (!isFinite(v)) throw new Error(label + '日別数量を読み取れません。');
           dailySum += v;
         });
+        log.check['日別数量合計'] = dailySum;
         if (Math.abs(dailySum - q) > 0.005) throw new Error(label + '日別数量の合計が一致しません。');
         rows.push({ vendor: firstVendor, site: site, vendorName: vendor, no: code.s, name: name, spec: '', unit: unit,
           qty: qty, price: price, amount: amount, originalAmount: amount, note: '', sourcePage: pageIndex + 1 });
@@ -79,6 +88,7 @@
           footer[label] = join(items.filter(function (x) { return x.x > anchor.x + 25 && Math.abs(x.y - anchor.y) < 2; }));
         }
       });
+      log.check = { '読取済明細数': rows.length, 'ページ末集計': footer };
       if (footer['課税対象額'] || footer['消費税'] || footer['合計']) {
         if (summary || pageIndex !== pages.length - 1) throw new Error(where + '複数の台帳が含まれています。1台帳ずつ選択してください。');
         summary = { base: footer['課税対象額'], tax: footer['消費税'], total: footer['合計'] };
@@ -87,6 +97,8 @@
     if (!rows.length || !summary) throw new Error('明細または最終ページの集計を読み取れません。全ページを含むPDFを選択してください。');
     var sum = rows.reduce(function (a, row) { return a + number(row.amount); }, 0);
     var b = number(summary.base), t = number(summary.tax), total = number(summary.total);
+    log.check = { '明細合計': sum, '原本課税対象額': summary.base, '原本消費税': summary.tax, '原本総合計': summary.total,
+      '計算総合計': Math.floor(b + t + 0.000001), '8％の計算税額': Math.floor(b * 0.08 + 0.000001), '10％の計算税額': Math.floor(b * 0.10 + 0.000001) };
     if (!isFinite(b) || !isFinite(t) || !isFinite(total) || Math.abs(sum - b) > 0.005 ||
         Math.abs(Math.floor(b + t + 0.000001) - total) > 0.005) {
       throw new Error('原本の課税対象額・消費税・合計と明細の計算結果が一致しません。');

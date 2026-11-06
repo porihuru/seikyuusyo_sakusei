@@ -16,9 +16,12 @@
     });
     return result;
   }
-  function parse(pages) {
+  function parse(pages, log) {
+    log = log || {};
     var records = [], vendors = [], contracts = [];
     pages.forEach(function (page, pageIndex) {
+      log.page = pageIndex + 1;
+      log.check = { '用紙幅(pt)': page.width, '用紙高さ(pt)': page.height, '文字要素数': page.items.length };
       var where = (pageIndex + 1) + 'ページ目：';
       if (Math.abs(page.width / page.height - 842 / 595) > 0.03) throw new Error(where + '対応する済通知の様式ではありません。');
       var items = page.items.map(function (x) {
@@ -27,6 +30,7 @@
       if (!items.some(function (x) { return key(x.s) === '契約済通知書'; })) throw new Error(where + '契約済通知書の文字を検出できません。');
       var vendor = join(items.filter(function (x) { return x.x >= 120 && x.x < 285 && Math.abs(x.y - 447.57) < 2; }));
       var contract = join(items.filter(function (x) { return x.x >= 120 && x.x < 285 && Math.abs(x.y - 480) < 2; }));
+      log.check = { '業者名': vendor, '契約番号': contract, '読取済品目数': records.length };
       if (!vendor || !contract) throw new Error(where + '業者名・契約番号を読み取れません。');
       if (vendors.indexOf(vendor) === -1) vendors.push(vendor);
       if (contracts.indexOf(contract) === -1) contracts.push(contract);
@@ -36,6 +40,7 @@
       codes.forEach(function (code) {
         var name = join(items.filter(function (x) { return x.x >= 156 && x.x < 486 && Math.abs(x.y - code.y) < 3; }));
         var spec = join(items.filter(function (x) { return x.x >= 156 && x.x < 486 && Math.abs(x.y - (code.y - 10.8)) < 3; }));
+        log.check = { '品目番号': code.s, '品名': name, '規格': spec, '行のY座標': code.y };
         if (!name) throw new Error(where + '品目 ' + code.s + ' の品名を読み取れません。');
         records.push({ name: name, spec: spec, vendor: vendor, contract: contract, page: pageIndex + 1, no: code.s });
       });

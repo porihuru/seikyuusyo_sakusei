@@ -72,6 +72,12 @@
           </div>
         </div>
       </div>
+      <section id="pdfLogPanel" hidden aria-labelledby="pdfLogTitle">
+        <h3 id="pdfLogTitle">PDF取込エラーログ</h3>
+        <p>直近10件を新しい順に表示します。この画面を閉じると消えます。</p>
+        <textarea id="pdfErrorLog" readonly rows="9" style="width:100%;box-sizing:border-box" aria-label="PDF取込エラーの詳細"></textarea>
+        <button type="button" id="savePdfLog">エラーログを保存（TXT）</button>
+      </section>
       <div id="headerBox" class="small" aria-live="polite">ここに納地・業者名ヘッダーが表示されます。</div>
     </section>
     <section class="panel" aria-labelledby="addressHeading">
@@ -161,8 +167,8 @@
   </main>
 
   <script src="vendor/pdfjs/pdf.js"></script>
-  <script src="casks/ledger_pdf_parser.js?v=20261106"></script>
-  <script src="casks/notice_pdf_parser.js"></script>
+  <script src="casks/ledger_pdf_parser.js?v=20261106-log"></script>
+  <script src="casks/notice_pdf_parser.js?v=20261106-log"></script>
 
    <!-- ★ここから追加★ 業者マスタ（gyousya.js）読込 ★ -->
   <script src="casks/gyousya.js"></script>
@@ -917,8 +923,8 @@ function copyTextToClipboard(text, label) {
 
 })();
 </script>
-<script src="casks/pdf_file_reader.js"></script>
-<script src="casks/pdf_input.js"></script>
+<script src="casks/pdf_file_reader.js?v=20261106-log"></script>
+<script src="casks/pdf_input.js?v=20261106-log"></script>
 <script src="casks/sharepoint-config.js"></script>
 <script src="casks/master_data.js"></script>
 <script src="casks/sharepoint_intranet.js"></script>

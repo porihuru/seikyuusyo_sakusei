@@ -35,7 +35,10 @@ assert.equal(parse(fractional).summary.total, '270', '原本の請求総額は1�
 original[0].items.reverse();
 assert.deepEqual(parse(original), result, 'PDF内部の文字順序に依存しない');
 let bad = fixture(); bad[0].items.find(x => x.str === '500.00' && x.transform[5] === 440).str = '490.00';
-assert.throws(() => parse(bad), /原本金額/);
+const log = {};
+assert.throws(() => parse(bad, log), /原本金額/);
+assert.equal(log.page, 1); assert.equal(log.check['明細番号'], '0001');
+assert.equal(log.check['原本金額'], '490.00'); assert.equal(log.check['数量×単価'], 500);
 bad = fixture(); bad[0].items.find(x => x.transform[4] === 221).str = '0.25';
 assert.throws(() => parse(bad), /日別数量/);
 bad = fixture(); bad[0].items.find(x => x.str === '540').str = '541';
