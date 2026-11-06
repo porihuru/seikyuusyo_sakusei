@@ -54,7 +54,7 @@
         var unit = join(band.filter(function (x) { return x.x >= 142 && x.x < 152; }));
         var qty = cell(742, 782, true), price = cell(782, 821, true), amount = cell(742, 821, false);
         var q = number(qty), p = number(price), a = number(amount);
-        if (!name || !/^(PC|BG|KG|EA|CA|CN|SH)$/.test(unit) || !isFinite(q) || !isFinite(p) || !isFinite(a)) {
+        if (!name || !/^(PC|BG|KG|EA|CA|CN|SH|PR)$/.test(unit) || !isFinite(q) || !isFinite(p) || !isFinite(a)) {
           throw new Error(label + '品名・単位・数量・単価・金額を読み取れません。');
         }
         if (Math.abs(Math.round(q * p * 100) / 100 - a) > 0.005) {
@@ -88,9 +88,12 @@
     var sum = rows.reduce(function (a, row) { return a + number(row.amount); }, 0);
     var b = number(summary.base), t = number(summary.tax), total = number(summary.total);
     if (!isFinite(b) || !isFinite(t) || !isFinite(total) || Math.abs(sum - b) > 0.005 ||
-        Math.abs(Math.floor(b + t + 0.000001) - total) > 0.005 || Math.floor(b * 0.08 + 0.000001) !== t) {
+        Math.abs(Math.floor(b + t + 0.000001) - total) > 0.005) {
       throw new Error('原本の課税対象額・消費税・合計と明細の計算結果が一致しません。');
     }
+    var rates = [8, 10].filter(function (rate) { return Math.floor(b * rate / 100 + 0.000001) === t; });
+    if (rates.length !== 1) throw new Error('原本の課税対象額・消費税から、単一の税率（8％または10％）を特定できません。');
+    summary.taxPercent = rates[0];
     summary.total = format(total).replace(/\.00$/, '');
     summary.calcBase = sum;
     summary.calcBaseStr = format(sum);

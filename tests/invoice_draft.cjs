@@ -11,7 +11,7 @@ const clean=D.validate(hostile);assert(!clean.rows[0].createdBy);assert(!clean.r
 const ids={};for(const id of ['btnSaveDraft','btnLoadDraft','invoiceDraftInput','billDate','toText','vendorText','bulkSpecText','printFirstRows','printLaterRows','copyMsg','pdfInput','pdfStatus'])ids[id]={value:'',click(){}};
 for(const key of ['billDate','toText','vendorText','bulkSpecText'])ids[key].value=draft[key];
 const state={confirm:true,alerts:[],renders:0,cancel:0,clear:0,masters:[],totals:0};
-const ctx={Blob,document:{getElementById:id=>ids[id],createElement:()=>({click(){}}),body:{appendChild(){},removeChild(){}}},alert:m=>state.alerts.push(m),confirm:()=>state.confirm,validateInvoice:()=>true,currentRows:copy(draft.rows),InvoicePrint:{fileName:(v,d,e)=>{assert.equal(v,draft.vendorText);assert(e);return '請求書_編集用_業者.json';},readSettings:()=>draft.printSettings},navigator:{msSaveOrOpenBlob:b=>state.blob=b},FileReader:class{readAsText(file){this.result=file.text;this.onload();}},cancelPdfLoad:()=>state.cancel++,clearNoticePdf:()=>state.clear++,renderTable:rows=>{state.renders++;ctx.currentRows=rows;ids.vendorText.value='PDF由来の業者';},invoiceMasterChanged:k=>state.masters.push(k),recalcTotalsFromRows:()=>state.totals++};
+const ctx={Blob,document:{getElementById:id=>ids[id],createElement:()=>({click(){}}),body:{appendChild(){},removeChild(){}}},alert:m=>state.alerts.push(m),confirm:()=>state.confirm,validateInvoice:()=>true,currentRows:copy(draft.rows),InvoicePrint:{fileName:(v,d,e)=>{assert.equal(v,draft.vendorText);assert(e);return '請求書_編集用_業者.json';},readSettings:()=>draft.printSettings},navigator:{msSaveOrOpenBlob:b=>state.blob=b},FileReader:class{readAsText(file){this.result=file.text;this.onload();}},cancelPdfLoad:()=>state.cancel++,clearNoticePdf:()=>state.clear++,renderTable:(rows,summary)=>{ctx.invoiceTaxPercent=summary.taxPercent;state.renders++;ctx.currentRows=rows;ids.vendorText.value='PDF由来の業者';},invoiceMasterChanged:k=>state.masters.push(k),recalcTotalsFromRows:()=>state.totals++};
 vm.runInNewContext(fs.readFileSync(require.resolve('../casks/invoice_draft.js'),'utf8'),ctx);
 function load(text){ids.invoiceDraftInput.files=[{size:text.length,text}];ids.invoiceDraftInput.onchange.call(ids.invoiceDraftInput);}
 (async()=>{
@@ -23,5 +23,7 @@ function load(text){ids.invoiceDraftInput.files=[{size:text.length,text}];ids.in
  assert.deepEqual(state.masters,['address','vendor']);assert.equal(state.totals,1);assert(ctx.currentRows[0]._specManual);
  ctx.currentRows[0].name='修正後';ctx.currentRows[0].qty='3';ctx.currentRows[0].amount='300';ids.btnSaveDraft.onclick();
  const changed=D.parse(await state.blob.text());assert.equal(changed.rows[0].name,'修正後');assert.equal(changed.rows[0].amount,'300');
+ ctx.invoiceTaxPercent=10;ids.btnSaveDraft.onclick();const standard=await state.blob.text();assert.equal(D.parse(standard).taxPercent,10);
+ load(saved);assert.equal(ctx.invoiceTaxPercent,8);load(standard);assert.equal(ctx.invoiceTaxPercent,10);
  console.log('編集用保存: 往復復元・改行/金額/設定保持・再編集再保存・不正ファイル/取消は無変更・旧PDF停止・マスタ紐付け解除: OK');
 })().catch(e=>{console.error(e);process.exitCode=1;});

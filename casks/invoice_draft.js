@@ -5,7 +5,9 @@
   function fail() { throw new Error('編集用データの形式が不正、または未対応のバージョンです。'); }
   function string(value, limit) { if (typeof value !== 'string' || value.length > limit) fail(); return value; }
   function validate(value) {
-    if (!value || value.format !== 'invoice-draft' || value.version !== 1 || !Array.isArray(value.rows) || !value.rows.length || value.rows.length > 5000) fail();
+    if (!value || value.format !== 'invoice-draft' || (value.version !== 1 && value.version !== 2) || !Array.isArray(value.rows) || !value.rows.length || value.rows.length > 5000) fail();
+    if (value.version === 2 && value.taxPercent !== 10 && value.taxPercent !== 8) fail();
+    if (value.version === 1 && value.taxPercent !== undefined && value.taxPercent !== 8) fail();
     var date = string(value.billDate, 10), m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
     if (date) {
       var d = m && new Date(+m[1], +m[2] - 1, +m[3]);
@@ -13,7 +15,7 @@
     }
     var p = value.printSettings;
     if (!p || typeof p.first !== 'number' || typeof p.later !== 'number' || p.first % 1 || p.later % 1 || p.first < 1 || p.first > 60 || p.later < 1 || p.later > 60) fail();
-    return { format: 'invoice-draft', version: 1, billDate: date,
+    return { format: 'invoice-draft', version: value.version, taxPercent: value.version === 1 ? 8 : value.taxPercent, billDate: date,
       toText: string(value.toText, 20000), vendorText: string(value.vendorText, 20000),
       bulkSpecText: string(value.bulkSpecText, 20000), printSettings: { first: p.first, later: p.later },
       rows: value.rows.map(function (input) {
@@ -36,7 +38,7 @@
   if (typeof module !== 'undefined' && module.exports) { module.exports = root.InvoiceDraft; return; }
   function el(id) { return document.getElementById(id); }
   function snapshot() {
-    return validate({ format: 'invoice-draft', version: 1, rows: root.currentRows,
+    return validate({ format: 'invoice-draft', version: root.invoiceTaxPercent === 10 ? 2 : 1, taxPercent: root.invoiceTaxPercent === 10 ? 10 : 8, rows: root.currentRows,
       billDate: el('billDate').value, toText: el('toText').value, vendorText: el('vendorText').value,
       bulkSpecText: el('bulkSpecText').value, printSettings: root.InvoicePrint.readSettings() });
   }
@@ -71,7 +73,7 @@
       try {
         if (root.cancelPdfLoad) root.cancelPdfLoad();
         if (root.clearNoticePdf) root.clearNoticePdf();
-        root.renderTable(data.rows, null);
+        root.renderTable(data.rows, { taxPercent: data.taxPercent });
         ['billDate', 'toText', 'vendorText', 'bulkSpecText'].forEach(function (key) { el(key).value = data[key]; });
         el('printFirstRows').value = data.printSettings.first; el('printLaterRows').value = data.printSettings.later;
         root.InvoicePrint.readSettings();

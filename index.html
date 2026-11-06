@@ -161,7 +161,7 @@
   </main>
 
   <script src="vendor/pdfjs/pdf.js"></script>
-  <script src="casks/ledger_pdf_parser.js"></script>
+  <script src="casks/ledger_pdf_parser.js?v=20261106"></script>
   <script src="casks/notice_pdf_parser.js"></script>
 
    <!-- ★ここから追加★ 業者マスタ（gyousya.js）読込 ★ -->
@@ -169,13 +169,13 @@
   <!-- ★ここまで追加★ -->
 
   <!-- 印刷用スクリプト -->
-  <script src="casks/print.js?v=20261006-02"></script>
+  <script src="casks/print.js?v=20261106"></script>
 
 <script>
 // 納入台帳テキスト解析 メイン側 v2025.11.23-paste-13
 
 var VERSION_TEXT = '納入台帳PDF 請求書作成 v2026.10.04-master-01';
-var TAX_RATE = 0.08; // 消費税率（8%）
+var invoiceTaxPercent = 8;
 
 // コピー用保持
 var lastHeaderText  = '';
@@ -392,7 +392,7 @@ function recalcTotalsFromRows() {
     }
   }
   var baseNum = sum;
-  var taxNum  = Math.floor(baseNum * TAX_RATE + 1e-6);
+  var taxNum  = Math.floor(baseNum * invoiceTaxPercent / 100 + 1e-6);
   var totalNum = Math.floor(baseNum + taxNum + 1e-6);
 
   var summaryNew = {
@@ -490,6 +490,7 @@ function renderTable(rows, summary) {
   lastDetailsText = '';
   lastSummaryText = '';
   currentRows     = [];
+  invoiceTaxPercent = summary && summary.taxPercent === 10 ? 10 : 8;
   originalSummary = summary || { base:'',tax:'',total:'',calcBaseStr:'',baseCheckMark:'' };
 
   if (!rows || !rows.length) {
@@ -923,6 +924,6 @@ function copyTextToClipboard(text, label) {
 <script src="casks/sharepoint_intranet.js"></script>
 <script src="casks/sharepoint_client.js"></script>
 <script src="casks/master_ui.js"></script>
-<script src="casks/invoice_draft.js"></script>
+<script src="casks/invoice_draft.js?v=20261106"></script>
 </body>
 </html>

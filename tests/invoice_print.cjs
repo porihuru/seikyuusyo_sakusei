@@ -33,7 +33,7 @@ function text(n){return 'No\t品名\t規格\t単位\t合計数量\t契約単価\
   assert.match(saved, /ご請求金額（税込）/);
   assert.match(saved, /\.invoice-title \{[^}]*text-align:left/);
   assert.match(saved, /\.amount-box \{[^}]*border-left:4px/);
-  assert.match(fs.readFileSync(require.resolve('../index.html'),'utf8'), /casks\/print\.js\?v=20261006-02/);
+  assert.match(fs.readFileSync(require.resolve('../index.html'),'utf8'), /casks\/print\.js\?v=20261106/);
   assert.equal((saved.match(/class="grand-total"/g)||[]).length,1);
   assert.match(sandbox.InvoicePrint.fileName('株式会社テスト\n住所','2026-10-05',true),/^請求書_編集用_株式会社テスト_20261005_/);
   assert(!/[<>:"/\\|?*]/.test(sandbox.InvoicePrint.fileName('A/B:*?\\C','',false)));
@@ -45,6 +45,8 @@ function text(n){return 'No\t品名\t規格\t単位\t合計数量\t契約単価\
   sandbox.navigator.msSaveOrOpenBlob=(b,n)=>{state.ieBlob=b;state.ieName=n;};sandbox.saveLedgerInvoice(text(1));assert(state.ieBlob);assert.match(state.ieName,/\.html$/);
   state.cookie='invoicePrintRows=20,28';vm.runInNewContext(source,sandbox);assert.equal(fields.printFirstRows.value,20);assert.equal(fields.printLaterRows.value,28);
   fields.btnResetPrintRows.onclick();assert.equal(fields.printFirstRows.value,15);assert.equal(fields.printLaterRows.value,25);
+  sandbox.invoiceTaxPercent=10;const standard=sandbox.InvoicePrint.parse(text(1));assert.equal(standard.totalAmount,110);
+  const html=sandbox.InvoicePrint.buildHtml(standard);assert.match(html,/消費税額１０％/);assert(!html.includes('軽減税率対象'));
   const before=state.clicked;sandbox.saveLedgerInvoice('');assert.equal(state.clicked,before);assert.match(state.alerts.at(-1),/明細がありません/);
   console.log('印刷行数: 境界・42品目2ページ・明細欠落/重複なし・合計・Cookie・不正値: OK');
   console.log('保存: 印刷HTML一致・日付固定・外部依存なし・文字エスケープ・Blob/IE保存経路: OK');

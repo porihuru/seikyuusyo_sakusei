@@ -19,6 +19,10 @@ assert.equal(result.rows[0].qty, '0.50');
 assert.equal(result.rows[0].price, '1,000.00');
 assert.equal(result.rows[0].amount, '500.00');
 assert.equal(result.summary.total, '540');
+const standard = fixture();
+standard[0].items.forEach(x => { x.str = ({KG:'PR', '40':'50', '540':'550'})[x.str] || x.str; });
+assert.equal(parse(standard).summary.taxPercent, 10);
+assert.equal(result.summary.taxPercent, 8);
 const fractional = fixture();
 fractional[0].items.forEach(x => {
   if (x.str === '0.50') x.str = '0.501';

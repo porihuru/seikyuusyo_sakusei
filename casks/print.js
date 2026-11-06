@@ -219,8 +219,8 @@
       }
     }
     var base = sum;
-    var TAX_RATE = 0.08; // 8%
-    var tax = Math.floor(base * TAX_RATE + 1e-6);
+    result.taxPercent = window.invoiceTaxPercent === 10 ? 10 : 8;
+    var tax = Math.floor(base * result.taxPercent / 100 + 1e-6);
     var total = Math.floor(base + tax + 1e-6);
 
     result.baseAmount = base;
@@ -358,7 +358,7 @@
 
         // 「下記のとおりご請求申し上げます。（低減税率対象）」行
         html +=
-          '<div class="message-line">下記のとおりご請求申し上げます。（軽減税率対象）</div>';
+          '<div class="message-line">下記のとおりご請求申し上げます。' + (data.taxPercent === 10 ? '' : '（軽減税率対象）') + '</div>';
 
         // 宛先枠
         html += '<div class="box atena" style="margin-bottom:4px;">';
@@ -486,7 +486,7 @@
           // 消費税額８％（.00付き）
           html += "<tr>";
           html +=
-            '<td class="sum-row-label" colspan="5">消費税額８％</td>';
+            '<td class="sum-row-label" colspan="5">消費税額' + (data.taxPercent === 10 ? '１０％' : '８％') + '</td>';
           html +=
             '<td class="sum-row-amount">' +
             escapeHtml(taxStr) +
