@@ -221,7 +221,8 @@
     var base = sum;
     result.taxPercent = window.invoiceTaxPercent === 10 ? 10 : 8;
     var tax = Math.floor(base * result.taxPercent / 100 + 1e-6);
-    var total = Math.floor(base + tax + 1e-6);
+    // 下部の総合計は銭まで保持。円未満の切捨ては上部の請求金額だけで行う。
+    var total = Math.round((base + tax) * 100) / 100;
 
     result.baseAmount = base;
     result.taxAmount = tax;
@@ -254,7 +255,7 @@
     }
     var pageCount = pages.length || 1;
 
-    // 合計・税・総合計の文字列（.00付き）
+    // 合計・税・総合計の文字列（小数点以下2桁）
     var baseStr = formatAmount(data.baseAmount || 0);
     var taxStr = formatAmount(data.taxAmount || 0);
     var totalStr = formatAmount(data.totalAmount || 0);

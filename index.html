@@ -175,7 +175,7 @@
   <!-- ★ここまで追加★ -->
 
   <!-- 印刷用スクリプト -->
-  <script src="casks/print.js?v=20261106"></script>
+  <script src="casks/print.js?v=20261110"></script>
 
 <script>
 // 納入台帳テキスト解析 メイン側 v2025.11.23-paste-13
@@ -399,12 +399,12 @@ function recalcTotalsFromRows() {
   }
   var baseNum = sum;
   var taxNum  = Math.floor(baseNum * invoiceTaxPercent / 100 + 1e-6);
-  var totalNum = Math.floor(baseNum + taxNum + 1e-6);
+  var totalNum = Math.round((baseNum + taxNum) * 100) / 100;
 
   var summaryNew = {
     base:  formatAmount(baseNum),
     tax:   formatInt(taxNum),
-    total: formatInt(totalNum),
+    total: formatAmount(totalNum),
     calcBaseStr: formatAmount(baseNum),
     baseCheckMark: '' // 再計算時は "<" 判定は行わない（原本比較ではないため）
   };
